@@ -1,0 +1,12 @@
+version: "3.7"
+
+services:
+  node:
+    image: jjuanrivvera99/node:alpine
+    restart: always
+    build:
+      context: docker/node
+      dockerfile: Dockerfile
+    container_name: node
+    volumes:
+      - ./:/var/www
