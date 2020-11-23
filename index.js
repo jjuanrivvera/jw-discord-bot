@@ -1,9 +1,9 @@
 //Discord vars
 const Discord = require('discord.js');
 const discordClient = new Discord.Client();
-const prefix = "jw!";
 require('dotenv').config();
 const discordToken = process.env.DISCORD_TOKEN;
+const prefix = process.env.PREFIX;
 
 //Mongo vars
 const dsn = process.env.MONGO_DSN;
@@ -51,12 +51,12 @@ discordClient.on('message', async msg => {
     if (command === "help") {
         try {
             if (!args.length) {
-                Command.find({}, async function(err, commands) {
+                await Command.find({}, async function(err, commands) {
                     let commandMap = [];
                     let help = new Discord.MessageEmbed().setColor("0x1D82B6");
                     help.setTitle("Available Command List");
 
-                    await commands.forEach(function(command) {
+                    commands.forEach(function(command) {
                         if (command.group === "User") {
                             help.addField(`${command.name}`, `**Description:** ${command.description}\n**Usage:** ${command.usage}`);
                         }
@@ -115,25 +115,29 @@ discordClient.on('message', async msg => {
         
         msg.channel.send(dateEmbed);
     }  else if (command === 'daily-text' ) {
+        try {
 
-        let dailyText = new Discord.MessageEmbed().setColor("0x1D82B6");
-        let dateString = getDateString();
-        console.log(dateString);
+            let dailyText = new Discord.MessageEmbed().setColor("0x1D82B6");
+            let dateString = getDateString();
+            console.log(dateString);
 
-        if (args.length) {
-            dateString = args[0];
+            if (args.length) {
+                dateString = args[0];
+            }
+            
+            let texto = await Text.findOne({ date : dateString}).exec();
+
+            if (!texto) {
+                msg.channel.send("No tengo el texto de ese día aún :c");
+                return;
+            }
+
+            dailyText.setTitle('Texto Diario');
+            dailyText.addField(`${texto.textContent} (${texto.text}).`, `${texto.explanation}`);
+            msg.channel.sendEmbed(dailyText).catch(err => console.log(err));
+        } catch (err) {
+            msg.channel.send("Ocurrió un error al obtener el texto de este día, considera leerlo desde https://jw.org");
         }
-        
-        let texto = await Text.findOne({ date : dateString}).exec();
-
-        if (!texto) {
-            msg.channel.send("No tengo el texto de ese día aún :c");
-            return;
-        }
-
-        dailyText.setTitle('Texto Diario');
-        dailyText.addField(`${texto.textContent} (${texto.text}).`, `${texto.explanation}`);
-        msg.reply(dailyText);
     }
 });
 
