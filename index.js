@@ -12,11 +12,10 @@ const dsn = process.env.MONGO_DSN;
 const mongoose = require('mongoose');
 mongoose.connect(dsn, {useNewUrlParser: true, useUnifiedTopology: true});
 
-//Mongoose Models
-const Command = require('./Models/Command');
-
+//Discord commands collection
 discordClient.commands = new Discord.Collection();
 
+//Read the files on Commands folder and load each command.
 fs.readdir('./Commands/', (err, files) => {
     if (err) {
         console.log(err);
@@ -35,22 +34,23 @@ fs.readdir('./Commands/', (err, files) => {
     });
 });
 
+//Discord bot ready
 discordClient.on('ready', () => {
     console.log(`Logged in as ${discordClient.user.tag}!`);
 });
-  
+
+
 discordClient.on('message', async message => {
 
     if (!message.content.startsWith(prefix) || message.author.bot || !message.guild) return;
 
     //Variables
-    let sender = message.author;
-    let args = message.content.slice(prefix.length).trim().split(' ');
-    let command = args.shift().toLowerCase();
-    let discordCommand = discordClient.commands.get(command);
+    let args = message.content.slice(prefix.length).trim().split(' '); //Command arguments
+    let command = args.shift().toLowerCase(); //Command name
+    let discordCommand = discordClient.commands.get(command); //Get the discord command
 
     if (discordCommand) {
-        discordCommand.run(discordClient, message, args);
+        discordCommand.run(discordClient, message, args); //Executes the given command
     }
 });
 
