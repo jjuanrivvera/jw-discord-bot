@@ -3,7 +3,7 @@ const Discord = require('discord.js');
 module.exports.run = async (client, message, args) => {
     let topicEmbed = new Discord.MessageEmbed().setColor("0x1D82B6");
     if (!args.length) {
-        message.channel.send("Tienes que espec[ificar un tema");
+        message.channel.send("Tienes que especificar un tema");
         return;
     }
 
