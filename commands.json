@@ -1,0 +1,26 @@
+{
+    "Help": {
+        "name": "Help",
+        "group": "User",
+        "description": "Help Command",
+        "usage": "help [group OR command]"
+    },
+    "Avatar": {
+        "name": "Avatar",
+        "group": "User",
+        "description": "Displays user's avatar or the mention one",
+        "usage": "avatar [user]"
+    },
+    "DailyText": {
+        "name": "Daily Text",
+        "group": "User",
+        "description": "Displays the daily text",
+        "usage": "daily-text"
+    },
+    "Ping": {
+        "name": "Ping",
+        "group": "Admin",
+        "description": "Ping command",
+        "usage": "ping"
+    }
+}
