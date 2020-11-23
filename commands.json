@@ -19,7 +19,7 @@
     },
     "Ping": {
         "name": "Ping",
-        "group": "Admin",
+        "group": "User",
         "description": "Ping command",
         "usage": "ping"
     }

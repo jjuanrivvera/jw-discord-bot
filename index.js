@@ -49,23 +49,26 @@ discordClient.on('message', async msg => {
     let command = args.shift().toLowerCase();
 
     if (command === "help") {
-        if (!args.length) {
-            Command.find({}, function(err, commands) {
-                let commandMap = [];
-                let help = new Discord.MessageEmbed().setColor("0x1D82B6");
-                help.setTitle("Available Command List");
+        try {
+            if (!args.length) {
+                Command.find({}, async function(err, commands) {
+                    let commandMap = [];
+                    let help = new Discord.MessageEmbed().setColor("0x1D82B6");
+                    help.setTitle("Available Command List");
 
-                commands.forEach(function(command) {
-                    if (command.group === "User") {
-                        help.addField(`${command.name}`, `**Description:** ${command.description}\n**Usage:** ${command.usage}`);
-                    }
-                    commandsFound++;
-                    commandMap.push(command);
+                    await commands.forEach(function(command) {
+                        if (command.group === "User") {
+                            help.addField(`${command.name}`, `**Description:** ${command.description}\n**Usage:** ${command.usage}`);
+                        }
+                        commandMap.push(command);
+                    });
+
+                    console.log(commandMap);
+                    msg.channel.send(help);
                 });
-
-                console.log(commandMap);
-                msg.channel.send(help);
-            });
+            }
+        } catch (err) {
+            msg.channel.send("Ocurrió un error al obtener la ayuda");
         }
     }
 
