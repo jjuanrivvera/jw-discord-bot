@@ -1,5 +1,6 @@
 const Discord = require('discord.js');
 const Text = require('../Models/Text');
+const Sentry = require('../sentry');
 
 function getDateString () {
     let timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -43,6 +44,7 @@ module.exports.run = async (client, message, args) => {
         await message.channel.send(dailyText);
     } catch (err) {
         console.log(err);
+        Sentry.captureException(err);
         message.channel.send("Ocurrió un error al obtener el texto de este día, considera leerlo desde https://jw.org");
     }
 }

@@ -1,4 +1,5 @@
 const Discord = require('discord.js');
+const Sentry = require('../sentry');
 
 module.exports.run = async (client, message, args) => {
     try {
@@ -35,6 +36,7 @@ module.exports.run = async (client, message, args) => {
         await message.channel.send(dateEmbed);
     } catch (err) {
         console.log(err);
+        Sentry.captureException(err);
         message.channel.send('Ocurrió un error al obtener la fecha');
     }
 }
