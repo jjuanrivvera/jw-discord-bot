@@ -15,7 +15,7 @@ const commandSchema = new mongoose.Schema({ name: 'string', group: 'string', des
 const Command = mongoose.model('command', commandSchema);
 
 //Texts Mongoose
-const textSchema = new mongoose.Schema({ date: 'string', text: 'string', textContent: "string", explanation: "string" });
+const textSchema = new mongoose.Schema({ date: 'string', text: 'string', textContent: "string", explanation: "string", reference: "string" });
 const Text = mongoose.model('text', textSchema);
 
 function getDateString () {
@@ -125,17 +125,21 @@ discordClient.on('message', async msg => {
                 dateString = args[0];
             }
             
-            let texto = await Text.findOne({ date : dateString}).exec();
+            let text = await Text.findOne({ date : dateString}).exec();
 
-            if (!texto) {
+            if (!text) {
                 msg.channel.send("No tengo el texto de ese día aún :c");
                 return;
             }
 
             dailyText.setTitle('Texto Diario');
-            dailyText.addField(`${texto.textContent} (${texto.text}).`, `${texto.explanation}`);
-            msg.channel.sendEmbed(dailyText).catch(err => console.log(err));
+            dailyText.addField(`${text.textContent} (${text.text}).`, `${text.explanation}`);
+            dailyText.setFooter(`Tomado de ${text.reference}`);
+
+            await msg.channel.send(dailyText);
+            //msg.channel.sendEmbed(dailyText).catch(err => console.log(err));
         } catch (err) {
+            console.log(err);
             msg.channel.send("Ocurrió un error al obtener el texto de este día, considera leerlo desde https://jw.org");
         }
     }
