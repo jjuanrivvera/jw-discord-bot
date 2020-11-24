@@ -26,6 +26,7 @@
     "jsdom": "^16.4.0",
     "mongodb": "^3.6.3",
     "mongoose": "^5.10.15",
+    "node-cron": "^2.0.3",
     "puppeteer": "^5.5.0",
     "scrape-it": "^5.2.4"
   }

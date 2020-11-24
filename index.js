@@ -1,5 +1,6 @@
 require('dotenv').config();
 const fs = require('fs');
+const cron = require('node-cron');
 
 //Discord vars
 const Discord = require('discord.js');
@@ -11,6 +12,8 @@ const prefix = process.env.PREFIX;
 const dsn = process.env.MONGO_DSN;
 const mongoose = require('mongoose');
 mongoose.connect(dsn, {useNewUrlParser: true, useUnifiedTopology: true});
+const Schedule = require('./Models/Schedule');
+const SchedulerController = require('./Controllers/SchedulerController');
 
 //Discord commands collection
 discordClient.commands = new Discord.Collection();
@@ -37,6 +40,36 @@ fs.readdir('./Commands/', (err, files) => {
 //Discord bot ready
 discordClient.on('ready', () => {
     console.log(`Logged in as ${discordClient.user.tag}!`);
+
+    cron.schedule('* * * * *', async function() {
+        let timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        let dateStringFromTimeZone = new Date().toLocaleString("en-US", { timeZone: timeZone });
+        let date = new Date(dateStringFromTimeZone);
+        let hours = ("0" + date.getHours()).slice(-2);
+        let day = ("0" + date.getDate()).slice(-2);
+        let month = ("0" + (date.getMonth() + 1)).slice(-2);
+        let year = date.getFullYear();
+        let dateString = `${year}-${month}-${day}`;
+        console.log(dateString);
+        try {
+            await Schedule.find({}, async function(err, schedules) {
+                schedules.forEach(async function(schedule) {
+                    if (hours == schedule.time && dateString != schedule.last) {
+                        const guild = discordClient.guilds.cache.get(`${schedule.guild}`);
+                        const channel = guild.channels.cache.find(channel => channel.name === schedule.channel);
+                        const action = schedule.action;
+
+                        SchedulerController[action](channel, dateString);
+
+                        schedule.last = dateString;
+                        schedule.save();
+                    }
+                });
+            }); 
+        } catch (err) {
+            console.log(err);
+        }
+    });
 });
 
 
