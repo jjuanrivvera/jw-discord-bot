@@ -1,15 +1,36 @@
-const Discord = require('discord.js');
+const { MessageEmbed } = require('discord.js');
 const Sentry = require('../sentry');
+
+function isValidTimeZone(tz) {
+    if (!Intl || !Intl.DateTimeFormat().resolvedOptions().timeZone) {
+        throw 'Time zones are not available in this environment';
+    }
+
+    try {
+        Intl.DateTimeFormat(undefined, {timeZone: tz});
+        return true;
+    }
+    catch (ex) {
+        return false;
+    }
+}
 
 module.exports.run = async (client, message, args) => {
     try {
-        let dateEmbed = new Discord.MessageEmbed().setColor("0x1D82B6");
+        //Discord message embed
+        let dateEmbed = new MessageEmbed().setColor("0x1D82B6");
 
         //Timezone
         let timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
+        //If there is an arg it will replace the timezone
         if (args.length) {
-            timeZone = args[0]
+            timeZone = args[0];
+
+            if (!isValidTimeZone(timeZone)) {
+                message.channel.send("La zona horaría ingresada no es válida").then(msg => msg.delete({ timeout: 3000}));
+                return;
+            }
         }
 
         // Date object initialized from user's timezone. Returns a datetime string
@@ -37,7 +58,7 @@ module.exports.run = async (client, message, args) => {
     } catch (err) {
         console.log(err);
         Sentry.captureException(err);
-        message.channel.send('Ocurrió un error al obtener la fecha');
+        message.channel.send('Ocurrió un error al obtener la fecha').then(msg => msg.delete({ timeout: 3000 }));
     }
 }
 

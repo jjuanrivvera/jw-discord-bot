@@ -1,9 +1,11 @@
-const Discord = require('discord.js');
+const {MessageEmbed} = require('discord.js');
 
 module.exports.run = async (client, message, args) => {
-    let topicEmbed = new Discord.MessageEmbed().setColor("0x1D82B6");
+    //Discord message embed
+    let topicEmbed = new MessageEmbed().setColor("0x1D82B6");
+    
     if (!args.length) {
-        message.channel.send("Tienes que especificar un tema");
+        message.channel.send("Tienes que especificar un tema").then(msg => msg.delete({ timeout: 3000 }));
         return;
     }
 
