@@ -37,10 +37,7 @@ fs.readdir('./Commands/', (err, files) => {
     });
 });
 
-//Discord bot ready
-discordClient.on('ready', () => {
-    console.log(`Logged in as ${discordClient.user.tag}!`);
-
+let setupScheduler = () => {
     cron.schedule('* * * * *', async function() {
         let timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
         let dateStringFromTimeZone = new Date().toLocaleString("en-US", { timeZone: timeZone });
@@ -50,7 +47,7 @@ discordClient.on('ready', () => {
         let month = ("0" + (date.getMonth() + 1)).slice(-2);
         let year = date.getFullYear();
         let dateString = `${year}-${month}-${day}`;
-        console.log(dateString);
+        
         try {
             await Schedule.find({}, async function(err, schedules) {
                 schedules.forEach(async function(schedule) {
@@ -65,11 +62,18 @@ discordClient.on('ready', () => {
                         schedule.save();
                     }
                 });
-            }); 
+            });
         } catch (err) {
             console.log(err);
         }
     });
+}
+
+//Discord bot ready
+discordClient.on('ready', () => {
+    console.log(`Logged in as ${discordClient.user.tag}!`);
+
+    setupScheduler();
 });
 
 

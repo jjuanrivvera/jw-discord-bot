@@ -1,4 +1,4 @@
-const Discord = require('discord.js');
+const { MessageEmbed } = require('discord.js');
 const Command = require('../Models/Command');
 const Sentry = require('../sentry');
 
@@ -7,7 +7,7 @@ module.exports.run = async (client, message, args) => {
         if (!args.length) {
             await Command.find({}, async function(err, commands) {
                 let commandMap = [];
-                let help = new Discord.MessageEmbed().setColor("0x1D82B6");
+                let help = new MessageEmbed().setColor("0x1D82B6");
                 help.setTitle("Available Command List");
 
                 commands.forEach(function(command) {
@@ -17,14 +17,13 @@ module.exports.run = async (client, message, args) => {
                     commandMap.push(command);
                 });
 
-                console.log(commandMap);
                 message.channel.send(help);
             });
         }
     } catch (err) {
         console.log(err);
         Sentry.captureException(err);
-        message.channel.send("Ocurrió un error al obtener la ayuda");
+        message.channel.send("Ocurrió un error al obtener la ayuda").then(msg => msg.delete({ timeout: 3000 }));
     }
 }
 

@@ -1,11 +1,11 @@
-const Discord = require('discord.js');
+const { MessageEmbed } = require('discord.js');
 const Sentry = require('../sentry');
 const Text = require('../Models/Text');
 
 module.exports = {
     sendDailyText: async (channel, dateString) => {
         try {
-            let dailyText = new Discord.MessageEmbed().setColor("0x1D82B6");
+            let dailyText = new MessageEmbed().setColor("0x1D82B6");
             let text = await Text.findOne({ date : dateString}).exec();
     
             if (!text) {
