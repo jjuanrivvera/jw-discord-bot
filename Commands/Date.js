@@ -28,7 +28,7 @@ module.exports.run = async (client, message, args) => {
             timeZone = args[0];
 
             if (!isValidTimeZone(timeZone)) {
-                message.channel.send("La zona horaría ingresada no es válida").then(msg => msg.delete({ timeout: 3000}));
+                message.channel.send("La zona horaria ingresada no es válida").then(msg => msg.delete({ timeout: 3000}));
                 return;
             }
         }

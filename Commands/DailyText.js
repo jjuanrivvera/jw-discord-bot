@@ -1,5 +1,5 @@
 const { MessageEmbed } = require('discord.js');
-const Text = require('../Models/Text');
+const Text = require('../Models/TextModel');
 const Sentry = require('../sentry');
 const moment = require('moment-timezone');
 

@@ -1,5 +1,5 @@
 const { MessageEmbed } = require('discord.js');
-const Command = require('../Models/Command');
+const Command = require('../Models/CommandModel');
 const Sentry = require('../sentry');
 
 module.exports.run = async (client, message, args) => {
