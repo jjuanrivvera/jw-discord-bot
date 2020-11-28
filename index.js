@@ -16,7 +16,7 @@ mongoose.connect(dsn, {
     useNewUrlParser: true,
     useUnifiedTopology: true
 });
-const Schedule = require("./Models/Schedule");
+const Schedule = require("./Models/ScheduleModel");
 const SchedulerController = require("./Controllers/SchedulerController");
 
 //Discord commands collection

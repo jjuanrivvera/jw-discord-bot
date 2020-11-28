@@ -1,4 +1,5 @@
-const {MessageEmbed} = require('discord.js');
+const { MessageEmbed } = require('discord.js');
+const SchedulerController = require('../Controllers/SchedulerController');
 
 module.exports.run = async (client, message, args) => {
     //Discord message embed
@@ -6,6 +7,11 @@ module.exports.run = async (client, message, args) => {
     
     if (!args.length) {
         message.channel.send("Tienes que especificar un tema").then(msg => msg.delete({ timeout: 3000 }));
+        return;
+    }
+
+    if (args[0] == "random") {
+        SchedulerController.sendRandomTopic(message.channel);
         return;
     }
 
