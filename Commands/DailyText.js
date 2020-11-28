@@ -1,36 +1,15 @@
 const { MessageEmbed } = require('discord.js');
 const Text = require('../Models/Text');
 const Sentry = require('../sentry');
-
-/**
- * Get date in format YY-MM-DD
- * 
- * @returns string
- */
-function getDateString () {
-    let timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-    // Date object initialized from user's timezone. Returns a datetime string
-    let dateStringFromTimeZone = new Date().toLocaleString("en-US", { timeZone: timeZone });
-
-    // Date object initialized from the above datetime string
-    let date = new Date(dateStringFromTimeZone);
-    
-    let day = ("0" + date.getDate()).slice(-2);
-    let month = ("0" + (date.getMonth() + 1)).slice(-2);
-    let year = date.getFullYear();
-    let dateString = `${year}-${month}-${day}`;
-
-    return dateString;
-}
+const moment = require('moment-timezone');
 
 module.exports.run = async (client, message, args) => {
     try {
         //Discord message embed
         let dailyText = new MessageEmbed().setColor("0x1D82B6");
 
-        //Date string YY-MM-DD
-        let dateString = getDateString();
+        //Date string YYYY-MM-DD
+        let dateString = moment().format('YYYY-MM-DD');
 
         if (args.length) {
             dateString = args[0];
