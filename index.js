@@ -1,15 +1,27 @@
 require("dotenv").config();
+
+/* -------------------------------------------
+ * Initialize Inspector with the Ingestion Key.
+ --------------------------------------------- */
+const inspector = require('@inspector-apm/inspector-nodejs')({
+    ingestionKey: process.env.INSPECTOR_KEY
+});
+
 const fs = require("fs");
 const cron = require("node-cron");
 const moment = require("moment-timezone");
 
-//Discord vars
+/* -------------------------------------------
+ * Initialize Discord vars.
+ --------------------------------------------- */
 const Discord = require("discord.js");
 const discordClient = new Discord.Client();
 const discordToken = process.env.DISCORD_TOKEN;
 const prefix = process.env.PREFIX;
 
-//Mongo vars
+/* -------------------------------------------
+ * Initialize Mongo vars.
+ --------------------------------------------- */
 const dsn = process.env.MONGO_DSN;
 const mongoose = require("mongoose");
 mongoose.connect(dsn, {
@@ -41,7 +53,7 @@ fs.readdir("./Commands/", (err, files) => {
     });
 });
 
-let setupScheduler = () => {
+const setupScheduler = () => {
     cron.schedule("* * * * *", async function () {
         //Get date and hour
         let date = moment().format("YYYY-MM-DD");
