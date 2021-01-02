@@ -24,7 +24,7 @@ module.exports.run = async (client, message, args) => {
         }
 
         dailyText.setTitle('Texto Diario');
-        dailyText.addField(`${text.textContent} (${text.text}).`, `${text.explanation}`);
+        dailyText.addField(`${text.textContent} ${text.text}`, `${text.explanation}`);
         dailyText.setFooter(`Tomado de ${text.reference}`);
 
         await message.channel.send(dailyText);
