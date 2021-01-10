@@ -55,6 +55,9 @@ fs.readdir("./Commands/", (err, files) => {
 
 const setupScheduler = () => {
     cron.schedule("* * * * *", async function () {
+
+        SchedulerController.checkForNews();
+
         //Get date and hour
         let date = moment().format("YYYY-MM-DD");
         let hours = moment().format("HH");
@@ -85,7 +88,6 @@ const setupScheduler = () => {
 //Discord bot ready
 discordClient.on("ready", () => {
     console.log(`Logged in as ${discordClient.user.tag}!`);
-
     setupScheduler();
 });
 
@@ -93,9 +95,9 @@ discordClient.on("message", async (message) => {
     if (!message.content.startsWith(prefix) || message.author.bot || !message.guild) return;
 
     //Variables
-    let args = message.content.slice(prefix.length).trim().split(" "); //Command arguments
-    let command = args.shift().toLowerCase(); //Command name
-    let discordCommand = discordClient.commands.get(command); //Get the discord command
+    const args = message.content.slice(prefix.length).trim().split(" "); //Command arguments
+    const command = args.shift().toLowerCase(); //Command name
+    const discordCommand = discordClient.commands.get(command); //Get the discord command
 
     if (discordCommand) {
         discordCommand.run(discordClient, message, args); //Executes the given command
