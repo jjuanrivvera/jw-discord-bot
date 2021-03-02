@@ -64,8 +64,9 @@ module.exports = {
         const lastItem = feed.getItemsSortedByDate().slice(0, 1)[0];
 
         const lastNew = await New.findOne().sort({ _id: -1 });
+        console.log(lastNew, lastItem);
 
-        if (lastNew && lastItem.title !== lastNew.title) {
+        if (lastItem.title !== lastNew.title) {
             try {
                 const servers = await Server.find({});
 
