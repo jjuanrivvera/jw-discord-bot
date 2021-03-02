@@ -7,4 +7,4 @@ const serverSchema = new mongoose.Schema({
     prefix: "string"
 });
 
-module.exports  = mongoose.model('server', serverSchema);
+module.exports = mongoose.model('server', serverSchema);

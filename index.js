@@ -54,10 +54,11 @@ fs.readdir("./Commands/", (err, files) => {
 });
 
 const setupScheduler = () => {
+    cron.schedule("*/5 * * * *", async function () {
+        SchedulerController.checkForNews(discordClient);
+    });
+
     cron.schedule("* * * * *", async function () {
-
-        SchedulerController.checkForNews();
-
         //Get date and hour
         let date = moment().format("YYYY-MM-DD");
         let hours = moment().format("HH");
