@@ -61,9 +61,9 @@ module.exports = {
         let feed = new RssFeed('https://www.jw.org/es/noticias/testigos-de-jehova/rss/NewsSubsectionRSSFeed/feed.xml');
         feed = await feed.requestFeed();
 
-        const lastItem = feed.getItemsSortedByDate().slice(0, 1)[0];
+        let lastItem = feed.getItemsSortedByDate().slice(0, 1)[0];
 
-        const lastNew = await New.findOne().sort({ _id: -1 });
+        let lastNew = await New.findOne().sort({ _id: -1 });
 
         if (lastItem.title !== lastNew.title) {
             try {
