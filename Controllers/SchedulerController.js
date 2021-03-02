@@ -37,10 +37,10 @@ module.exports = {
         try {
             // Get a random topic from MongoDB
             await Topic.countDocuments().exec(async function (err, count) {
-                let topicEmbed = new MessageEmbed().setColor("0x1D82B6");
+                const topicEmbed = new MessageEmbed().setColor("0x1D82B6");
                 
                 // Get a random entry
-                var random = Math.floor(Math.random() * count);
+                const random = Math.floor(Math.random() * count);
             
                 // Again query all users but only fetch one offset by our random #
                 await Topic.findOne().skip(random).exec(async function (err, topic) {
@@ -63,9 +63,9 @@ module.exports = {
 
         const lastItem = feed.getItemsSortedByDate().slice(0, 1)[0];
 
-        let lastNew = await New.findOne({ last : true}).exec();
+        const lastNew = await New.findOne().sort({ _id: -1 });
 
-        if (lastItem.title !== lastNew.title) {
+        if (lastNew && lastItem.title !== lastNew.title) {
             try {
                 const servers = await Server.find({});
 
