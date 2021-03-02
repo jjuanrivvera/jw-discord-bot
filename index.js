@@ -54,8 +54,7 @@ fs.readdir("./Commands/", (err, files) => {
 });
 
 const setupScheduler = () => {
-    cron.schedule("* * * * *", async function () {
-        console.log("hi");
+    cron.schedule("*/10 * * * *", async function () {
         SchedulerController.checkForNews(discordClient);
     });
 
