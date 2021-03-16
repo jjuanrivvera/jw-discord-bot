@@ -2,12 +2,26 @@ const { MessageEmbed } = require('discord.js');
 const Text = require('../Models/TextModel');
 const Sentry = require('../sentry');
 const moment = require('moment-timezone');
+const paginationEmbed = require('discord.js-pagination');
+
+const chunkString = (s, maxBytes) => {
+    let buf = Buffer.from(s);
+    const result = [];
+    while (buf.length) {
+        let i = buf.lastIndexOf(32, maxBytes+1);
+        // If no space found, try forward search
+        if (i < 0) i = buf.indexOf(32, maxBytes);
+        // If there's no space at all, take the whole string
+        if (i < 0) i = buf.length;
+        // This is a safe cut-off point; never half-way a multi-byte
+        result.push(buf.slice(0, i).toString());
+        buf = buf.slice(i+1); // Skip space (if any)
+    }
+    return result;
+}
 
 module.exports.run = async (client, message, args) => {
     try {
-        //Discord message embed
-        let dailyText = new MessageEmbed().setColor("0x1D82B6");
-
         //Date string YYYY-MM-DD
         let dateString = moment().format('YYYY-MM-DD');
 
@@ -23,11 +37,21 @@ module.exports.run = async (client, message, args) => {
             return;
         }
 
-        dailyText.setTitle('Texto Diario');
-        dailyText.addField(`${text.textContent} ${text.text}`, `${text.explanation}`);
-        dailyText.setFooter(`Tomado de ${text.reference}`);
+        const embeds = [];
 
-        await message.channel.send(dailyText);
+        const chunk = chunkString(`${text.explanation}`, 1024).slice(0, -1);
+
+        chunk.forEach(element => {
+            //Discord message embed
+            const dailyText = new MessageEmbed().setColor("0x1D82B6");
+            
+            dailyText.setTitle('Texto Diario');
+            dailyText.addField(`${text.textContent} ${text.text}`, `${element}`);
+
+            embeds.push(dailyText);
+        });
+
+        await paginationEmbed(message, embeds, ['⏪', '⏩'], 28800000);
     } catch (err) {
         console.log(err);
         Sentry.captureException(err);
