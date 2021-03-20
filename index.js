@@ -31,27 +31,29 @@ mongoose.connect(dsn, {
 const Schedule = require("./Models/ScheduleModel");
 const SchedulerController = require("./Controllers/SchedulerController");
 
-//Discord commands collection
-discordClient.commands = new Discord.Collection();
+const loadCommands = () => {
+    //Discord commands collection
+    discordClient.commands = new Discord.Collection();
 
-//Read the files on Commands folder and load each command.
-fs.readdir("./Commands/", (err, files) => {
-    if (err) {
-        console.log(err);
-    }
+    //Read the files on Commands folder and load each command.
+    fs.readdir("./Commands/", (err, files) => {
+        if (err) {
+            console.log(err);
+        }
 
-    let jsFiles = files.filter((f) => f.split(".").pop() === "js");
+        let jsFiles = files.filter((f) => f.split(".").pop() === "js");
 
-    if (!jsFiles.length) {
-        console.log("No commands found");
-    }
+        if (!jsFiles.length) {
+            console.log("No commands found");
+        }
 
-    jsFiles.forEach((file, index) => {
-        const command = require(`./Commands/${file}`);
-        discordClient.commands.set(command.config.command, command);
-        console.log(`Command ${file} loaded`);
+        jsFiles.forEach((file, index) => {
+            const command = require(`./Commands/${file}`);
+            discordClient.commands.set(command.config.command, command);
+            console.log(`Command ${file} loaded`);
+        });
     });
-});
+}
 
 const setupScheduler = () => {
     cron.schedule("0 */12 * * *", async function () {
@@ -60,8 +62,8 @@ const setupScheduler = () => {
 
     cron.schedule("* * * * *", async function () {
         //Get date and hour
-        let date = moment().format("YYYY-MM-DD");
-        let hours = moment().format("HH");
+        const date = moment().format("YYYY-MM-DD");
+        const hours = moment().format("HH");
 
         try {
             await Schedule.find({}, async function (err, schedules) {
@@ -85,6 +87,8 @@ const setupScheduler = () => {
         }
     });
 };
+
+loadCommands();
 
 //Discord bot ready
 discordClient.on("ready", () => {

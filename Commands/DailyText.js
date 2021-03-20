@@ -2,7 +2,7 @@ const { MessageEmbed } = require('discord.js');
 const Text = require('../Models/TextModel');
 const Sentry = require('../sentry');
 const moment = require('moment-timezone');
-const paginationEmbed = require('discord.js-pagination');
+const paginationEmbed = require('../util/pagination-embed');
 
 const chunkString = (s, maxBytes) => {
     let buf = Buffer.from(s);
@@ -30,7 +30,7 @@ module.exports.run = async (client, message, args) => {
         }
         
         //Get the text from MongoDB
-        let text = await Text.findOne({ date : dateString}).exec();
+        const text = await Text.findOne({ date : dateString}).exec();
 
         if (!text) {
             message.channel.send("No tengo el texto de ese día aún :c").then(msg => msg.delete({ timeout: 3000 }));
@@ -51,7 +51,7 @@ module.exports.run = async (client, message, args) => {
             embeds.push(dailyText);
         });
 
-        await paginationEmbed(message, embeds, ['⏪', '⏩'], 28800000);
+        await paginationEmbed(message.channel, embeds, ['⏪', '⏩'], 28800000);
     } catch (err) {
         console.log(err);
         Sentry.captureException(err);
