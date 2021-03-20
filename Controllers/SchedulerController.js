@@ -1,32 +1,57 @@
 const { MessageEmbed } = require('discord.js');
+const { RssFeed } = require('../util');
 const Sentry = require('../sentry');
 const Text = require('../Models/TextModel');
 const New = require('../Models/NewModel');
 const Server = require('../Models/ServerModel');
 const Topic = require('../Models/TopicModel');
 const moment = require('moment');
-const { RssFeed } = require('../util');
+const paginationEmbed = require('../util/pagination-embed');
 
 const getDate = () => {
     return moment().format("YYYY-MM-DD");
 }
 
+const chunkString = (s, maxBytes) => {
+    let buf = Buffer.from(s);
+    const result = [];
+    while (buf.length) {
+        let i = buf.lastIndexOf(32, maxBytes+1);
+        // If no space found, try forward search
+        if (i < 0) i = buf.indexOf(32, maxBytes);
+        // If there's no space at all, take the whole string
+        if (i < 0) i = buf.length;
+        // This is a safe cut-off point; never half-way a multi-byte
+        result.push(buf.slice(0, i).toString());
+        buf = buf.slice(i+1); // Skip space (if any)
+    }
+    return result;
+}
+
 module.exports = {
     sendDailyText: async (channel, dateString) => {
         try {
-            let dailyText = new MessageEmbed().setColor("0x1D82B6");
-            let text = await Text.findOne({ date : dateString}).exec();
+            const text = await Text.findOne({ date : dateString}).exec();
     
             if (!text) {
                 console.log("No pude obtener el texto del día");
                 return;
             }
-    
-            dailyText.setTitle('Texto Diario');
-            dailyText.addField(`${text.textContent} ${text.text}`, `${text.explanation}`);
-            dailyText.setFooter(`Tomado de ${text.reference}`);
-    
-            await channel.send(dailyText);
+
+            const embeds = [];
+            const chunk = chunkString(`${text.explanation}`, 1024).slice(0, -1);
+
+            chunk.forEach(element => {
+                //Discord message embed
+                const dailyText = new MessageEmbed().setColor("0x1D82B6");
+                
+                dailyText.setTitle('Texto Diario');
+                dailyText.addField(`${text.textContent} ${text.text}`, `${element}`);
+
+                embeds.push(dailyText);
+            });
+
+            await paginationEmbed(channel, embeds, ['⏪', '⏩'], 28800000);
         } catch (err) {
             console.log(err);
             Sentry.captureException(err);
