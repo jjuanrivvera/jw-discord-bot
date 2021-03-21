@@ -39,7 +39,7 @@ module.exports.run = async (client, message, args) => {
 
         const embeds = [];
 
-        const chunk = chunkString(`${text.explanation}`, 1024).slice(0, -1);
+        const chunk = chunkString(`${text.explanation}`, 1024);
 
         chunk.forEach(element => {
             //Discord message embed
