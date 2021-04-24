@@ -9,7 +9,11 @@ const paginationEmbed = async (channel, pages, emojiList = ['⏪', '⏩'], timeo
     
     let page = 0;
     
-    const curPage = await channel.send(pages[page].setFooter(`Page ${page + 1} / ${pages.length}`));
+	const curPage = await channel.send(pages[page].setFooter(`Page ${page + 1} / ${pages.length}`));
+	
+	if (pages.length === 1) {
+		return curPage;
+	}
     
     for (const emoji of emojiList) await curPage.react(emoji);
     

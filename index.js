@@ -28,6 +28,12 @@ mongoose.connect(dsn, {
     useNewUrlParser: true,
     useUnifiedTopology: true
 });
+
+
+/* -------------------------------------------
+ * Initialize Schedule vars.
+ --------------------------------------------- */
+const newsCronPeriodicity = process.env.NEWS_CRON || '* */6 * * *';
 const Schedule = require("./Models/ScheduleModel");
 const SchedulerController = require("./Controllers/SchedulerController");
 
@@ -56,7 +62,7 @@ const loadCommands = () => {
 }
 
 const setupScheduler = () => {
-    cron.schedule("0 */12 * * *", async function () {
+    cron.schedule(newsCronPeriodicity, async function () {
         SchedulerController.checkForNews(discordClient);
     });
 
