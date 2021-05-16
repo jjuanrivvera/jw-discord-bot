@@ -1,7 +1,7 @@
 const { MessageEmbed } = require('discord.js');
-const SchedulerController = require('../Controllers/SchedulerController');
+const SchedulerController = require('../../controllers/SchedulerController');
 
-module.exports.run = async (client, message, args) => {
+module.exports.run = async (message, args) => {
     //Discord message embed
     let topicEmbed = new MessageEmbed().setColor("0x1D82B6");
     
@@ -24,5 +24,6 @@ module.exports.run = async (client, message, args) => {
 }
 
 module.exports.config = {
+    name: "Topic",
     command: "topic"
 }

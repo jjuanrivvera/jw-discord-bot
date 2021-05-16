@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require('../db/mongoose');
 
 const textSchema = new mongoose.Schema({
     date: 'string',

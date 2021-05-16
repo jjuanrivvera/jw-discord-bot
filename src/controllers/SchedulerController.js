@@ -1,10 +1,7 @@
 const { MessageEmbed } = require('discord.js');
 const { RssFeed } = require('../util');
-const Sentry = require('../sentry');
-const Text = require('../Models/TextModel');
-const New = require('../Models/NewModel');
-const Server = require('../Models/ServerModel');
-const Topic = require('../Models/TopicModel');
+const { Text, New, Guild, Topic } = require('../models');
+const Sentry = require('../../sentry');
 const moment = require('moment');
 const paginationEmbed = require('../util/pagination-embed');
 
@@ -14,7 +11,9 @@ const getDate = () => {
 
 const chunkString = (s, maxBytes) => {
     let buf = Buffer.from(s);
+
     const result = [];
+
     while (buf.length) {
         let i = buf.lastIndexOf(32, maxBytes+1);
         // If no space found, try forward search
@@ -25,6 +24,7 @@ const chunkString = (s, maxBytes) => {
         result.push(buf.slice(0, i).toString());
         buf = buf.slice(i+1); // Skip space (if any)
     }
+    
     return result;
 }
 
@@ -86,13 +86,13 @@ module.exports = {
         let feed = new RssFeed('https://www.jw.org/es/noticias/testigos-de-jehova/rss/NewsSubsectionRSSFeed/feed.xml');
         feed = await feed.requestFeed();
 
-        let lastItem = feed.getItemsSortedByDate().slice(0, 1)[0];
+        const lastItem = feed.getItemsSortedByDate().slice(0, 1)[0];
 
-        let lastNew = await New.findOne().sort({ _id: -1 });
+        const lastNew = await New.findOne().sort({ _id: -1 });
 
         if (lastItem.title !== lastNew.title) {
             try {
-                const servers = await Server.find({});
+                const servers = await Guild.find({});
 
                 servers.forEach(async function (server) {
                     const guild = client.guilds.cache.get(`${server.id}`);
