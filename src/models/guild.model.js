@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+const mongoose = require('../db/mongoose');
 
 const serverSchema = new mongoose.Schema({
     id: 'string',

@@ -7,7 +7,7 @@ const Tracing = require("@sentry/tracing");
 // import * as Tracing from '@sentry/tracing';
 
 Sentry.init({
-  dsn: "https://531d88bb22fc4efdbed0cf0d339f3847@o481159.ingest.sentry.io/5529288",
+  dsn: process.env.SENTRY_DSN,
 
   // We recommend adjusting this value in production, or using tracesSampler
   // for finer control

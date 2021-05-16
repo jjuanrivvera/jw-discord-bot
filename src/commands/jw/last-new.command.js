@@ -1,7 +1,7 @@
-const New = require('../Models/NewModel');
+const { New } = require('../../models');
 const { MessageEmbed } = require('discord.js');
 
-module.exports.run = async (client, message, args) => {
+module.exports.run = async (message) => {
     const lastNew = await New.findOne().sort({ _id: -1 });
 
     console.log(lastNew);
@@ -14,5 +14,6 @@ module.exports.run = async (client, message, args) => {
 }
 
 module.exports.config = {
+    name: "Last New",
     command: "last-new"
 }
