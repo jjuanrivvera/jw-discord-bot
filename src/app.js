@@ -6,6 +6,13 @@ const Discord = require("discord.js");
 const discordClient = new Discord.Client();
 const discordToken = process.env.DISCORD_TOKEN;
 
+/* -------------------------------------------
+ * Initialize Schedule vars.
+ --------------------------------------------- */
+const newsCronPeriodicity = process.env.NEWS_CRON || '* */6 * * *';
+const { Schedule } = require("./models");
+const { SchedulerController } = require("./controllers");
+
 module.exports = {
     loadCommands() {
         discordClient.commands = new Discord.Collection();
