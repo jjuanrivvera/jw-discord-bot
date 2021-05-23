@@ -1,12 +1,17 @@
 version: "3.7"
 
 services:
+
   node:
-    image: jjuanrivvera99/node:alpine
-    restart: always
-    build:
-      context: docker/node
-      dockerfile: Dockerfile
-    container_name: node
+    image: node:lts-alpine
+    command: sh -c "tail -f /dev/null"
+    working_dir: /app
     volumes:
-      - ./:/var/www
+      - ./:/app
+    
+  bot:
+    image: node:lts-alpine
+    command: sh -c "node index.js"
+    working_dir: /app
+    volumes:
+      - ./:/app
