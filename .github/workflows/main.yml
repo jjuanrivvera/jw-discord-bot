@@ -25,7 +25,7 @@ jobs:
       - name: Apply changes
         run: |
           cd /home/jjuanrivvera99/repos/jw-discord-bot
-          git pull origin master
+          git pull origin main
           docker-compose exec -T node sh -c "npm i"
           docker-compose down
           docker-compose up -d
