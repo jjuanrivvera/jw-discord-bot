@@ -1,5 +1,5 @@
 const { MessageEmbed } = require('discord.js');
-const SchedulerController = require('../../controllers/SchedulerController');
+const { JwHelper } = require('../../helpers');
 
 module.exports.run = async (message, args) => {
     //Discord message embed
@@ -11,8 +11,7 @@ module.exports.run = async (message, args) => {
     }
 
     if (args[0] == "random") {
-        SchedulerController.sendRandomTopic(message.channel);
-        return;
+        return JwHelper.sendRandomTopic(message.channel);
     }
 
     let topic = args.join('+');

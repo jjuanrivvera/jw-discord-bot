@@ -6,11 +6,12 @@ module.exports.run = async (message) => {
 
     console.log(lastNew);
 
-    const newEmbed = new MessageEmbed().setColor("0x1D82B6");
-    newEmbed.setTitle(lastNew.title);
-    newEmbed.addField(lastNew.link);
+    const newEmbed = new MessageEmbed()
+        .setColor("0x1D82B6")
+        .setTitle(lastNew.title)
+        .setDescription(lastNew.link);
 
-    await message.channel.send(newEmbed);
+    message.channel.send(newEmbed);
 }
 
 module.exports.config = {

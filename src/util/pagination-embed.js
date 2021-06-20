@@ -1,6 +1,6 @@
 require("dotenv").config();
 
-const botId = process.env.BOT_ID;
+const botId = process.env.DISCORD_BOT_ID;
 
 const paginationEmbed = async (channel, pages, emojiList = ['⏪', '⏩'], timeout = 120000) => {
 	if (!channel) throw new Error('Channel is inaccessible.');
