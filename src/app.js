@@ -59,7 +59,10 @@ module.exports = {
                 for (const schedule of schedules) {
                     if (hours === schedule.time && date !== schedule.last) {
                         const guild = discordClient.guilds.cache.get(`${schedule.guild}`);
-                        const channel = guild.channels.cache.find(channel => channel.name === schedule.channel);
+                        const channel = guild?.channels.cache.find(channel => channel.name === schedule.channel);
+
+                        if (!channel) return;
+
                         const action = schedule.action;
 
                         ScheduleHelper[action](channel, date);

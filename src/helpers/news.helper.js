@@ -11,18 +11,22 @@ module.exports = {
 
         const lastStoredNew = await New.findOne().sort({ _id: -1 });
 
-        if (lastNew.title !== lastStoredNew.title) {
+        const newNews = news.getItemsSortedByDate().filter(newItem => {
+            return new Date(lastStoredNew.isoDate) < new Date(newItem.isoDate);
+        });
+
+        for (const newItem of newNews) {
             try {
                 const servers = await Guild.find({});
 
                 servers.forEach(async function (server) {
                     const guild = client.guilds.cache.get(`${server.id}`);
-                    const channel = guild.channels.find(channel => channel.name === server.newsNotificationChannel);
+                    const channel = guild.channels.cache.find(channel => channel.name === server.newsNotificationChannel);
                     
                     const newsEmbed = new MessageEmbed()
                         .setColor("0x1D82B6")
-                        .setTitle(lastNew.title.replace('COMUNICADOS', 'Última noticia'))
-                        .addField(`Leer aquí:`, `${lastNew.link}`);
+                        .setTitle(newItem.title.replace('COMUNICADOS', 'Última noticia'))
+                        .addField(`Leer aquí:`, `${newItem.link}`);
 
                     channel.send(newsEmbed);
                 });
