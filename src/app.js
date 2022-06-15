@@ -50,8 +50,8 @@ module.exports = {
     
         cron.schedule("* * * * *", async function () {
             //Get date and hour
-            const date = moment().format("YYYY-MM-DD");
-            const hours = moment().format("HH");
+            const date = moment().tz('America/Bogota').format("YYYY-MM-DD");
+            const hours = moment().tz('America/Bogota').format("HH");
     
             try {
                 const schedules = await Schedule.find();
