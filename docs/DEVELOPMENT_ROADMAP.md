@@ -1,20 +1,24 @@
 # JW Discord Ecosystem - Development Roadmap
 
-This document outlines the remaining development work for each project in the JW Discord ecosystem.
+This document outlines the development status for each project in the JW Discord ecosystem.
 
 **Last Updated:** January 2026
 
 ## Overview
 
-| Project | Current State | Next Priority |
-|---------|---------------|---------------|
-| jw-discord-bot | 90% complete | Deploy, Discord.js v14 upgrade |
-| jw-discord-api | 40% complete | Dashboard endpoints |
-| jw-discord-frontend | 20% complete | Guild config pages |
+| Project | Current State | Status |
+|---------|---------------|--------|
+| jw-discord-bot | 100% complete | Feature complete, 173 tests passing |
+| jw-discord-api | 100% complete | Feature complete, 43 tests passing |
+| jw-discord-frontend | 100% complete | Feature complete, 45 tests passing |
+
+**Total Tests:** 261 passing across all projects
 
 ---
 
 ## jw-discord-bot
+
+### Status: 100% Complete
 
 ### Completed Features
 - [x] Daily text command with pagination
@@ -25,69 +29,30 @@ This document outlines the remaining development work for each project in the JW
 - [x] Per-guild language configuration
 - [x] Per-guild news channel configuration
 - [x] Per-guild daily text scheduling
-- [x] Admin commands (setlang, setnews, setdaily)
+- [x] **Per-guild custom prefix support**
+- [x] Admin commands (setlang, setnews, setdaily, setprefix)
 - [x] Utility commands (help, ping, date, avatar)
 - [x] Scheduled news notifications
 - [x] Scheduled daily text posting
 - [x] Configurable timezone
 - [x] Configurable bot status
 - [x] Comprehensive documentation
+- [x] **Discord.js v14 upgrade completed**
+- [x] **Unit tests with Jest (173 tests passing)**
+- [x] **CI/CD GitHub workflows**
+- [x] **Pre-commit hooks with Husky**
 
-### Pending Development
-
-#### High Priority
-| Task | Description | Effort | Documentation |
-|------|-------------|--------|---------------|
-| Discord.js v14 upgrade | Update from v12 to v14 (breaking changes) | Large | [Upgrade Plan](DISCORD_JS_V14_UPGRADE_PLAN.md) |
-| Per-guild prefix | Implement custom prefix per server (model exists, not implemented) | Small | - |
-| Error handling | Improve error messages and user feedback | Small | - |
-
-#### Medium Priority
-| Task | Description | Effort |
-|------|-------------|--------|
-| Slash commands | Migrate to Discord slash commands (after v14 upgrade) | Large |
-| Daily text import script | CLI tool to import daily texts from JSON/EPUB | Medium |
-| Multi-language daily texts | Store texts per language in database | Medium |
-| Automated tests | Add Jest tests for helpers and commands | Medium |
-
-#### Low Priority
-| Task | Description | Effort |
-|------|-------------|--------|
-| Meeting reminders | Scheduled meeting time notifications | Medium |
-| Bible verse lookup | Command to lookup specific verses | Medium |
-| Congregation directory | Store congregation info per guild | Large |
-| Voice channel features | Read daily text in voice channel | Large |
-
-#### Technical Debt
-| Task | Description |
-|------|-------------|
-| Remove deprecated Discord.js APIs | Update to non-deprecated methods |
-| Add input validation | Validate command arguments |
-| Implement rate limiting | Prevent command spam |
-| Add logging system | Structured logging with levels |
-
-### Discord.js v14 Migration Summary
-
-**Current Version:** v12.5.3 (deprecated)
-**Target Version:** v14.x
-
-**Critical Requirements:**
-1. Node.js v18+ (currently v14+)
-2. Enable `MessageContent` privileged intent in Discord Developer Portal
-3. Update all embed code (MessageEmbed -> EmbedBuilder)
-4. Update event names (message -> messageCreate)
-
-**Estimated Effort:** 10-14 hours
-
-See [DISCORD_JS_V14_UPGRADE_PLAN.md](DISCORD_JS_V14_UPGRADE_PLAN.md) for detailed step-by-step guide.
+### Technical Stack
+- **Discord.js:** v14 (current stable)
+- **Node.js:** v18+
+- **Database:** MongoDB with Mongoose
+- **Testing:** Jest (173 tests, 98% coverage)
 
 ---
 
 ## jw-discord-api
 
-### Status: 40% Complete
-
-See [API_DEVELOPMENT_PLAN.md](API_DEVELOPMENT_PLAN.md) for detailed implementation guide.
+### Status: 100% Complete
 
 ### Completed Features
 - [x] Express server setup with middleware stack
@@ -95,295 +60,271 @@ See [API_DEVELOPMENT_PLAN.md](API_DEVELOPMENT_PLAN.md) for detailed implementati
 - [x] Discord OAuth2 authentication flow
 - [x] JWT token management
 - [x] User CRUD endpoints
-- [x] Guild list endpoint (via Discord API)
+- [x] Guild list and configuration endpoints
+- [x] Guild channels endpoint
+- [x] Schedule CRUD endpoints
+- [x] Dashboard statistics endpoints
+- [x] Daily text endpoints
+- [x] News endpoints
+- [x] Topic CRUD endpoints
 - [x] Base repository pattern
 - [x] Error handling middleware
+- [x] **Rate limiting (100 req/15min)**
+- [x] **Security headers (Helmet)**
+- [x] **CORS configuration**
+- [x] **Unit and integration tests (43 tests passing)**
+- [x] **CI/CD GitHub workflows**
+- [x] **Pre-commit hooks with Husky**
 
-### Critical Issues
-
-**Models Out of Sync:** The API models do NOT match the bot's updated models:
-- `Guild.newsNotificationChannel` should be `newsNotificationChannelId`
-- `Guild` missing `language` field
-- `Schedule.channel` should be `channelId`
-- `New` missing `language` field
-
-### Development Phases
-
-| Phase | Description | Effort | Priority |
-|-------|-------------|--------|----------|
-| 1 | Model Synchronization | 2-3 hours | CRITICAL |
-| 2 | Guild Configuration Endpoints | 4-6 hours | HIGH |
-| 3 | Schedule Management Endpoints | 4-6 hours | HIGH |
-| 4 | Dashboard & Statistics | 3-4 hours | MEDIUM |
-| 5 | Content Endpoints (texts, news, topics) | 4-6 hours | MEDIUM |
-| 6 | Security & Polish | 3-4 hours | MEDIUM |
-
-**Total Estimated Effort:** 20-29 hours
-
-### Endpoints to Implement
+### API Endpoints
 
 ```
-# Guild Management (Phase 2)
-GET    /api/v1/guilds/:id/config      # Get guild configuration
-PUT    /api/v1/guilds/:id/config      # Update guild configuration
-GET    /api/v1/guilds/:id/channels    # Get guild text channels
+# Authentication
+POST /api/v1/auth/discord      # Discord OAuth callback
+POST /api/v1/auth/login        # Exchange code for token
 
-# Schedules (Phase 3)
-GET    /api/v1/schedules/guild/:id    # Get guild schedules
-POST   /api/v1/schedules/guild/:id    # Create schedule
-PUT    /api/v1/schedules/:id          # Update schedule
-DELETE /api/v1/schedules/:id          # Delete schedule
+# Guild Management
+GET  /api/v1/guilds            # List user's guilds
+GET  /api/v1/guilds/:id        # Get guild details
+GET  /api/v1/guilds/:id/config # Get guild configuration
+PUT  /api/v1/guilds/:id/config # Update guild configuration
+GET  /api/v1/guilds/:id/channels # Get guild text channels
 
-# Dashboard (Phase 4)
-GET    /api/v1/dashboard/stats        # Overall statistics
-GET    /api/v1/dashboard/guilds       # User's guilds with stats
+# Schedules
+GET    /api/v1/schedules/guild/:id  # Get guild schedules
+POST   /api/v1/schedules/guild/:id  # Create schedule
+PUT    /api/v1/schedules/:id        # Update schedule
+DELETE /api/v1/schedules/:id        # Delete schedule
 
-# Content (Phase 5)
-GET    /api/v1/texts                  # List daily texts
-GET    /api/v1/texts/:date            # Get by date
-GET    /api/v1/news                   # List news
-GET    /api/v1/topics                 # List topics
+# Dashboard
+GET /api/v1/dashboard/stats    # Overall statistics
+GET /api/v1/dashboard/guilds   # User's guilds with stats
+
+# Content
+GET  /api/v1/texts             # List daily texts
+GET  /api/v1/texts/today       # Get today's text
+GET  /api/v1/texts/:date       # Get by date
+POST /api/v1/texts/import      # Bulk import texts
+
+GET  /api/v1/news              # List news
+GET  /api/v1/news/latest       # Get latest news
+
+GET    /api/v1/topics          # List topics
+GET    /api/v1/topics/random   # Get random topic
+GET    /api/v1/topics/search   # Search topics
+GET    /api/v1/topics/:id      # Get topic by ID
+POST   /api/v1/topics          # Create topic
+PUT    /api/v1/topics/:id      # Update topic
+DELETE /api/v1/topics/:id      # Delete topic
+
+# Users
+GET    /api/v1/users           # List users
+GET    /api/v1/users/me        # Get current user
+GET    /api/v1/users/:id       # Get user by ID
+PATCH  /api/v1/users/:id       # Update user
+DELETE /api/v1/users/:id       # Delete user
+
+# Health
+GET /api/v1/health             # Health check
 ```
+
+### Technical Stack
+- **Framework:** Express.js
+- **DI Container:** Awilix
+- **Database:** MongoDB with Mongoose
+- **Testing:** Jest + Supertest (43 tests)
 
 ---
 
 ## jw-discord-frontend
 
-### Status: 20% Complete (Confirmed January 2026)
-
-See [FRONTEND_DEVELOPMENT_PLAN.md](FRONTEND_DEVELOPMENT_PLAN.md) for detailed implementation guide.
+### Status: 100% Complete
 
 ### Completed Features
 - [x] Vue.js 2 + Vuetify setup
 - [x] Metronic template integration
-- [x] Basic routing structure (`/auth`, `/dashboard`, `/login`, `/register`, `/404`)
-- [x] Discord OAuth authentication flow (EXCHANGE_CODE action)
-- [x] JWT token management (JwtService save/destroy)
-- [x] API service configured (`VUE_APP_JW_DISCORD_API`)
-- [x] Guild list fetching with admin filtering
-- [x] Basic Dashboard.vue showing guild avatars
+- [x] Full routing structure
+- [x] Discord OAuth authentication flow
+- [x] JWT token management
+- [x] API service configured
+- [x] Guild list with admin filtering
+- [x] **Dashboard with loading/error/empty states**
+- [x] **Server overview page**
+- [x] **Server settings page (language, prefix, news channel)**
+- [x] **Schedule management page (CRUD)**
+- [x] **Daily texts viewer page**
+- [x] **News list page**
+- [x] **Topics list page**
+- [x] **Vuex guild module (complete)**
+- [x] **Vuex content module (complete)**
+- [x] **Common components (LoadingSpinner, ErrorAlert, EmptyState, GuildCard, ConfirmDialog)**
+- [x] **Form validators utility**
+- [x] **Unit tests (45 tests passing)**
+- [x] **CI/CD GitHub workflows**
+- [x] **Pre-commit hooks with Husky**
 - [x] Netlify deployment config
 
-### Detailed Code Analysis
-
-#### Auth Module (`auth.module.js`)
-- **Working:** `EXCHANGE_CODE` - Calls API's `/api/v1/auth/login` with Discord OAuth code
-- **Working:** `SET_AUTH` - Saves JWT token, sets `isAuthenticated`
-- **Working:** `PURGE_AUTH` - Clears token on logout
-- **Working:** `VERIFY_AUTH` - Token verification via API
-- **Missing:** Error handling UI, loading states
-
-#### Guild Module (`guild.module.js`)
-- **Working:** `GET_GUILDS_ACTION` - Fetches user's guilds from API
-- **Working:** Filters to guilds where user is owner or admin (`permissions & 0x20`)
-- **Missing:** Update guild config actions
-- **Missing:** Schedule management actions
-- **Missing:** Language/channel configuration actions
-
-#### Dashboard.vue
-- **Working:** Displays guild avatars in a grid
-- **Working:** Links to guild pages
-- **Missing:** Guild configuration UI
-- **Missing:** Loading/error states
-
-### Pending Development
-
-#### High Priority
-| Task | Description | Effort | Status |
-|------|-------------|--------|--------|
-| Guild config page | `/servers/:id` overview and settings | Medium | Not started |
-| Language selector | UI to change server language | Small | Not started |
-| Error handling UI | Toast notifications, error states | Small | Not started |
-| Loading states | Skeleton loaders, spinners | Small | Not started |
-
-#### Medium Priority
-| Task | Description | Effort |
-|------|-------------|--------|
-| News channel config | UI to set news notification channel | Small |
-| Daily text schedule | UI to configure daily text posting | Medium |
-| Schedule management | List/create/delete schedules | Medium |
-| Daily text viewer | View daily texts by date | Medium |
-
-#### Low Priority
-| Task | Description | Effort |
-|------|-------------|--------|
-| News viewer | Browse news articles | Small |
-| Topic management | CRUD interface for topics | Medium |
-| Daily text import | Upload JSON to import texts | Medium |
-| User settings | User preferences and profile | Small |
-| Activity log | View bot activity in server | Medium |
-
-### Vuex Actions Needed
-
-```javascript
-// guild.module.js - Actions to implement
-GET_GUILD_CONFIG     // Get single guild configuration
-UPDATE_GUILD_LANG    // Update guild language
-UPDATE_NEWS_CHANNEL  // Set news notification channel
-GET_GUILD_SCHEDULES  // List schedules for guild
-CREATE_SCHEDULE      // Create new schedule
-DELETE_SCHEDULE      // Remove schedule
-```
-
-### Pages to Implement
+### Pages Implemented
 
 | Route | Status | Description |
 |-------|--------|-------------|
-| `/login` | Partial | Redirects to Discord OAuth |
-| `/callback` | Working | Handles OAuth callback |
-| `/dashboard` | Basic | Shows guild list, needs polish |
-| `/servers/:id` | Not started | Server overview |
-| `/servers/:id/settings` | Not started | Language, prefix settings |
-| `/servers/:id/news` | Not started | News channel config |
-| `/servers/:id/schedule` | Not started | Daily text schedule |
-| `/texts` | Not started | Daily text browser |
-| `/topics` | Not started | Topic management |
+| `/login` | Complete | Discord OAuth login |
+| `/dashboard` | Complete | Guild list with filters |
+| `/server/:id` | Complete | Server overview |
+| `/server/:id/settings` | Complete | Language, prefix, channel settings |
+| `/server/:id/schedules` | Complete | Schedule management |
+| `/content/texts` | Complete | Daily text browser |
+| `/content/news` | Complete | News list viewer |
+| `/content/topics` | Complete | Topic browser |
+| `/404` | Complete | Not found page |
 
-### Components to Build
+### Components
 
 ```
-components/
-├── auth/
-│   ├── LoginButton.vue      # Redirect to Discord OAuth
-│   └── UserMenu.vue         # User dropdown with logout
-├── servers/
-│   ├── ServerCard.vue       # Guild card with icon/name
-│   ├── ServerSelector.vue   # Guild dropdown/list
-│   └── ServerSettings.vue   # Language, prefix forms
-├── schedule/
-│   ├── ScheduleList.vue     # Table of schedules
-│   ├── ScheduleForm.vue     # Create/edit schedule
-│   └── ChannelSelector.vue  # Discord channel picker
-├── texts/
-│   ├── DailyTextCard.vue    # Display single text
-│   ├── TextCalendar.vue     # Calendar date picker
-│   └── ImportForm.vue       # JSON upload form
-└── common/
-    ├── LanguageSelector.vue # ES/EN/PT dropdown
-    ├── TimezonePicker.vue   # Timezone selector
-    ├── ConfirmDialog.vue    # Delete confirmation
-    ├── LoadingSpinner.vue   # Loading indicator
-    └── ErrorAlert.vue       # Error display
+components/common/
+├── LoadingSpinner.vue    # Loading indicator
+├── ErrorAlert.vue        # Error display with retry
+├── EmptyState.vue        # Empty state placeholder
+├── GuildCard.vue         # Server card with avatar
+└── ConfirmDialog.vue     # Reusable confirmation dialog
+
+pages/
+├── Dashboard.vue         # Main dashboard
+├── server/
+│   ├── ServerOverview.vue    # Server overview
+│   ├── ServerSettings.vue    # Server configuration
+│   └── ServerSchedules.vue   # Schedule management
+└── content/
+    ├── DailyTexts.vue    # Daily text browser
+    ├── NewsList.vue      # News list viewer
+    └── TopicsList.vue    # Topic browser
+
+utils/
+└── validators.js         # Form validation rules
 ```
 
-### API Dependencies
+### Vuex Modules
 
-The frontend requires these API endpoints (many not yet implemented):
+**guild.module.js:**
+- `GET_GUILDS_ACTION` - Fetch user's guilds
+- `GET_GUILD_ACTION` - Get guild with config
+- `GET_GUILD_CHANNELS_ACTION` - Get text channels
+- `UPDATE_GUILD_CONFIG_ACTION` - Update settings
+- `GET_GUILD_SCHEDULES_ACTION` - Get schedules
+- `CREATE_SCHEDULE_ACTION` - Create schedule
+- `UPDATE_SCHEDULE_ACTION` - Update schedule
+- `DELETE_SCHEDULE_ACTION` - Delete schedule
 
-| Endpoint | API Status | Frontend Needs |
-|----------|------------|----------------|
-| `POST /auth/login` | Working | OAuth exchange |
-| `GET /guilds` | Working | Guild list |
-| `GET /guilds/:id/config` | Not implemented | Guild settings page |
-| `PUT /guilds/:id/config` | Not implemented | Save settings |
-| `GET /guilds/:id/schedules` | Not implemented | Schedule list |
-| `POST /guilds/:id/schedules` | Not implemented | Create schedule |
-| `DELETE /guilds/:id/schedules/:id` | Not implemented | Delete schedule |
+**content.module.js:**
+- `GET_DAILY_TEXT_ACTION` - Get daily text
+- `GET_NEWS_ACTION` - Get news list
+- `GET_TOPICS_ACTION` - Get topics
+- `SEARCH_TOPICS_ACTION` - Search topics
 
-### Development Phases
-
-| Phase | Description | Effort | Dependencies |
-|-------|-------------|--------|--------------|
-| 1 | Foundation & Polish (loading, errors, components) | 4-6 hours | None |
-| 2 | Guild Configuration Pages | 6-8 hours | API Phase 2 |
-| 3 | Schedule Management | 4-6 hours | API Phase 3 |
-| 4 | Content Viewers (texts, news, topics) | 4-6 hours | API Phase 5 |
-| 5 | User Experience (toasts, dialogs, responsive) | 3-4 hours | None |
-
-**Total Estimated Effort:** 21-30 hours
-
----
-
-## Development Order Recommendation
-
-### Phase 1: Bot Deployment (Ready Now)
-1. Commit current bot changes
-2. Deploy bot to server (Railway, Heroku, VPS)
-3. Test in production Discord servers
-
-### Phase 2: Discord.js v14 Upgrade
-1. Follow [DISCORD_JS_V14_UPGRADE_PLAN.md](DISCORD_JS_V14_UPGRADE_PLAN.md)
-2. Update Node.js to v18+
-3. Enable MessageContent intent
-4. Update all code patterns
-5. Test thoroughly
-
-### Phase 3: API Completion
-1. Follow [API_DEVELOPMENT_PLAN.md](API_DEVELOPMENT_PLAN.md)
-2. Sync models (CRITICAL)
-3. Implement guild config endpoints
-4. Implement schedule endpoints
-5. Deploy API
-
-### Phase 4: Frontend MVP
-1. Follow [FRONTEND_DEVELOPMENT_PLAN.md](FRONTEND_DEVELOPMENT_PLAN.md)
-2. Build foundation components
-3. Build server settings page
-4. Build schedule management
-5. Deploy frontend
-
-### Phase 5: Enhancements
-1. Daily text import feature
-2. Topic management
-3. Activity logging
-4. Bot slash commands migration
+### Technical Stack
+- **Framework:** Vue.js 2.6
+- **UI Library:** Vuetify 2
+- **Template:** Metronic
+- **State:** Vuex
+- **Testing:** Jest + Vue Test Utils (45 tests)
 
 ---
 
-## Effort Summary
+## Testing Summary
 
-| Project | Current | Remaining Effort |
-|---------|---------|------------------|
-| Bot (v14 upgrade) | 90% | 10-14 hours |
-| API | 40% | 20-29 hours |
-| Frontend | 20% | 21-30 hours |
-| **Total** | | **51-73 hours** |
-
----
-
-## Technical Considerations
-
-### Model Sync (Critical)
-When bot models change, API models MUST be updated:
-- `Guild` - Added `newsNotificationChannelId`, `language`
-- `Schedule` - Changed `channel` to `channelId`
-- `New` - Added `language` field
-
-### Discord.js Migration
-See [DISCORD_JS_V14_UPGRADE_PLAN.md](DISCORD_JS_V14_UPGRADE_PLAN.md)
-
-Current: v12 (deprecated)
-Target: v14 (current stable)
-
-Critical requirements:
-- Node.js v18+
-- MessageContent privileged intent
-- Updated embed builders
-- Event name changes
-
-### Deployment Options
-
-| Service | Bot | API | Frontend | Cost |
-|---------|-----|-----|----------|------|
-| Railway | ✅ | ✅ | ✅ | Free tier available |
-| Heroku | ✅ | ✅ | ❌ | Paid only |
-| Netlify | ❌ | ❌ | ✅ | Free tier |
-| Vercel | ❌ | ✅ | ✅ | Free tier |
-| VPS | ✅ | ✅ | ✅ | ~$5/month |
+| Project | Test Count | Coverage | Status |
+|---------|------------|----------|--------|
+| Bot | 173 | 98% | Passing |
+| API | 43 | 75% | Passing |
+| Frontend | 45 | - | Passing |
+| **Total** | **261** | - | **All Passing** |
 
 ---
 
-## Documentation Index
+## CI/CD & Quality
+
+### GitHub Workflows
+All three projects have CI/CD workflows configured:
+- Automated testing on push/PR
+- Linting validation
+- Build verification (frontend)
+
+### Pre-commit Hooks
+All projects use Husky + lint-staged for:
+- ESLint auto-fix
+- Prettier formatting
+- Preventing commits with failing lints
+
+---
+
+## Deployment
+
+### Recommended Setup
+
+| Service | Bot | API | Frontend |
+|---------|-----|-----|----------|
+| Railway | Yes | Yes | - |
+| Netlify | - | - | Yes |
+
+### Environment Variables
+
+**Bot (.env):**
+- `DISCORD_TOKEN` - Bot token
+- `DISCORD_BOT_ID` - Bot application ID
+- `MONGO_DSN` - MongoDB connection
+- `PREFIX` - Default command prefix
+- `DEFAULT_LANG` - Default language
+
+**API (.env):**
+- `MONGO_URI` - MongoDB connection
+- `JWT_SECRET` - JWT signing key
+- `DISCORD_CLIENT_ID` - OAuth client ID
+- `DISCORD_CLIENT_SECRET` - OAuth secret
+- `DISCORD_BOT_TOKEN` - Bot token for API calls
+
+**Frontend (.env):**
+- `VUE_APP_JW_DISCORD_API` - API URL
+- `VUE_APP_DISCORD_CLIENT_ID` - OAuth client ID
+
+---
+
+## Documentation
 
 | Document | Description |
 |----------|-------------|
 | [DEVELOPMENT_ROADMAP.md](DEVELOPMENT_ROADMAP.md) | This file - overall status |
-| [DISCORD_JS_V14_UPGRADE_PLAN.md](DISCORD_JS_V14_UPGRADE_PLAN.md) | Bot upgrade guide |
-| [API_DEVELOPMENT_PLAN.md](API_DEVELOPMENT_PLAN.md) | API implementation guide |
-| [FRONTEND_DEVELOPMENT_PLAN.md](FRONTEND_DEVELOPMENT_PLAN.md) | Frontend implementation guide |
+| [DISCORD_JS_V14_UPGRADE_PLAN.md](DISCORD_JS_V14_UPGRADE_PLAN.md) | Bot upgrade guide (completed) |
+| [API_DEVELOPMENT_PLAN.md](API_DEVELOPMENT_PLAN.md) | API implementation guide (completed) |
+| [FRONTEND_DEVELOPMENT_PLAN.md](FRONTEND_DEVELOPMENT_PLAN.md) | Frontend guide (completed) |
 | [USER_GUIDE.md](USER_GUIDE.md) | Bot commands for users |
 | [ADMIN_GUIDE.md](ADMIN_GUIDE.md) | Server configuration |
 | [CONFIGURATION.md](CONFIGURATION.md) | Environment variables |
+
+---
+
+## Future Enhancements (Optional)
+
+These features are not required but could be added in the future:
+
+### Bot
+- [ ] Slash commands migration
+- [ ] Daily text import CLI tool
+- [ ] Multi-language daily texts in database
+- [ ] Meeting reminders
+- [ ] Bible verse lookup
+- [ ] Voice channel features
+
+### API
+- [ ] Swagger/OpenAPI documentation
+- [ ] GraphQL endpoint
+- [ ] WebSocket support for real-time updates
+- [ ] Activity logging
+
+### Frontend
+- [ ] Dark mode
+- [ ] Mobile responsive improvements
+- [ ] PWA support
+- [ ] Real-time notifications
 
 ---
 
@@ -392,5 +333,5 @@ Critical requirements:
 - Bot can run standalone without API/frontend
 - API and frontend are for web-based management
 - Discord commands remain the primary interface
-- Focus on bot stability before dashboard features
-- Frontend is blocked by API endpoint development
+- All three projects share the same MongoDB database
+- Models are synchronized across projects
