@@ -11,7 +11,9 @@ const {
     getGuildLanguage,
     getGuildConfig,
     setGuildLanguage,
-    getGuildString
+    getGuildString,
+    getGuildPrefix,
+    setGuildPrefix
 } = require('../../../src/helpers/guild.helper');
 
 const { Guild, resetAllMocks } = require('../../mocks/models.mock');
@@ -242,6 +244,139 @@ describe('Guild Helper', () => {
             const result = await getGuildString('nonExistentKey', 'guild-123');
 
             expect(result).toBe('nonExistentKey');
+        });
+    });
+
+    describe('getGuildPrefix', () => {
+        const DEFAULT_PREFIX = process.env.PREFIX || 'jw!';
+
+        it('should return DEFAULT_PREFIX when guildId is null', async () => {
+            const result = await getGuildPrefix(null);
+            expect(result).toBe(DEFAULT_PREFIX);
+            expect(Guild.findOne).not.toHaveBeenCalled();
+        });
+
+        it('should return DEFAULT_PREFIX when guildId is undefined', async () => {
+            const result = await getGuildPrefix(undefined);
+            expect(result).toBe(DEFAULT_PREFIX);
+            expect(Guild.findOne).not.toHaveBeenCalled();
+        });
+
+        it('should return DEFAULT_PREFIX when guildId is empty string', async () => {
+            const result = await getGuildPrefix('');
+            expect(result).toBe(DEFAULT_PREFIX);
+            expect(Guild.findOne).not.toHaveBeenCalled();
+        });
+
+        it('should return guild prefix when found', async () => {
+            Guild.findOne.mockResolvedValue({ id: 'guild-123', prefix: '!' });
+
+            const result = await getGuildPrefix('guild-123');
+
+            expect(result).toBe('!');
+            expect(Guild.findOne).toHaveBeenCalledWith({ id: 'guild-123' });
+        });
+
+        it('should return DEFAULT_PREFIX when guild not found', async () => {
+            Guild.findOne.mockResolvedValue(null);
+
+            const result = await getGuildPrefix('guild-123');
+
+            expect(result).toBe(DEFAULT_PREFIX);
+        });
+
+        it('should return DEFAULT_PREFIX when guild has no prefix set', async () => {
+            Guild.findOne.mockResolvedValue({ id: 'guild-123', prefix: null });
+
+            const result = await getGuildPrefix('guild-123');
+
+            expect(result).toBe(DEFAULT_PREFIX);
+        });
+
+        it('should return DEFAULT_PREFIX on database error', async () => {
+            Guild.findOne.mockRejectedValue(new Error('Database error'));
+
+            const result = await getGuildPrefix('guild-123');
+
+            expect(result).toBe(DEFAULT_PREFIX);
+        });
+    });
+
+    describe('setGuildPrefix', () => {
+        it('should update guild prefix successfully', async () => {
+            const mockUpdatedGuild = {
+                id: 'guild-123',
+                name: 'Test Guild',
+                prefix: '!'
+            };
+            Guild.findOneAndUpdate.mockResolvedValue(mockUpdatedGuild);
+
+            const result = await setGuildPrefix('guild-123', 'Test Guild', '!');
+
+            expect(result).toEqual(mockUpdatedGuild);
+            expect(Guild.findOneAndUpdate).toHaveBeenCalledWith(
+                { id: 'guild-123' },
+                {
+                    id: 'guild-123',
+                    name: 'Test Guild',
+                    prefix: '!'
+                },
+                { upsert: true, new: true }
+            );
+        });
+
+        it('should accept valid prefix with special characters', async () => {
+            Guild.findOneAndUpdate.mockResolvedValue({ prefix: '!jw' });
+
+            await expect(setGuildPrefix('guild-123', 'Test', '!jw')).resolves.toBeDefined();
+        });
+
+        it('should accept single character prefix', async () => {
+            Guild.findOneAndUpdate.mockResolvedValue({ prefix: '!' });
+
+            await expect(setGuildPrefix('guild-123', 'Test', '!')).resolves.toBeDefined();
+        });
+
+        it('should accept maximum length prefix (10 chars)', async () => {
+            Guild.findOneAndUpdate.mockResolvedValue({ prefix: '1234567890' });
+
+            await expect(setGuildPrefix('guild-123', 'Test', '1234567890')).resolves.toBeDefined();
+        });
+
+        it('should throw error for prefix longer than 10 characters', async () => {
+            await expect(setGuildPrefix('guild-123', 'Test', '12345678901'))
+                .rejects
+                .toThrow('Prefix must be 1-10 characters');
+        });
+
+        it('should throw error for null prefix', async () => {
+            await expect(setGuildPrefix('guild-123', 'Test', null))
+                .rejects
+                .toThrow('Prefix must be 1-10 characters');
+        });
+
+        it('should throw error for empty prefix', async () => {
+            await expect(setGuildPrefix('guild-123', 'Test', ''))
+                .rejects
+                .toThrow('Prefix must be 1-10 characters');
+        });
+
+        it('should create guild if it does not exist (upsert)', async () => {
+            const mockNewGuild = {
+                id: 'new-guild',
+                name: 'New Guild',
+                prefix: 'jw!'
+            };
+            Guild.findOneAndUpdate.mockResolvedValue(mockNewGuild);
+
+            const result = await setGuildPrefix('new-guild', 'New Guild', 'jw!');
+
+            expect(result).toEqual(mockNewGuild);
+            expect(Guild.findOneAndUpdate).toHaveBeenCalledWith(
+                { id: 'new-guild' },
+                expect.any(Object),
+                { upsert: true, new: true }
+            );
         });
     });
 });

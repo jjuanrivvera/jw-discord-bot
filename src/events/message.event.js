@@ -1,16 +1,27 @@
 const { Events } = require('discord.js');
-const discordPrefix = process.env.PREFIX || 'jw!';
 const Sentry = require('../../sentry');
 const { getString } = require('../config/languages');
+const GuildHelper = require('../helpers/guild.helper');
+
+const DEFAULT_PREFIX = process.env.PREFIX || 'jw!';
 
 module.exports = {
     name: Events.MessageCreate,  // v14: 'message' -> Events.MessageCreate
     async execute(message, client) {
-        if (!message.content.startsWith(discordPrefix) || message.author.bot || !message.guild) {
+        // Ignore bot messages and DMs
+        if (message.author.bot || !message.guild) {
             return;
         }
 
-        const args = message.content.slice(discordPrefix.length).trim().split(' '); // Command arguments
+        // Get guild-specific prefix or fall back to default
+        const guildPrefix = await GuildHelper.getGuildPrefix(message.guild.id);
+
+        // Check if message starts with the guild's prefix
+        if (!message.content.startsWith(guildPrefix)) {
+            return;
+        }
+
+        const args = message.content.slice(guildPrefix.length).trim().split(' '); // Command arguments
         const command = args.shift().toLowerCase(); // Command name
         const discordCommand = client.commands.get(command); // Get the discord command
 

@@ -75,7 +75,13 @@ const languages = {
             // Help command strings
             availableCommands: 'Lista de comandos disponibles',
             description: 'Descripción',
-            usage: 'Uso'
+            usage: 'Uso',
+            // Prefix command strings
+            prefix: 'Prefijo',
+            defaultPrefix: 'Predeterminado',
+            prefixSet: 'Prefijo configurado a',
+            prefixTooLong: 'El prefijo debe tener 10 caracteres o menos',
+            prefixTooShort: 'El prefijo debe tener al menos 1 carácter'
         }
     },
     en: {
@@ -132,7 +138,13 @@ const languages = {
             // Help command strings
             availableCommands: 'Available Command List',
             description: 'Description',
-            usage: 'Usage'
+            usage: 'Usage',
+            // Prefix command strings
+            prefix: 'Prefix',
+            defaultPrefix: 'Default',
+            prefixSet: 'Prefix set to',
+            prefixTooLong: 'Prefix must be 10 characters or less',
+            prefixTooShort: 'Prefix must be at least 1 character'
         }
     },
     pt: {
@@ -189,7 +201,13 @@ const languages = {
             // Help command strings
             availableCommands: 'Lista de comandos disponíveis',
             description: 'Descrição',
-            usage: 'Uso'
+            usage: 'Uso',
+            // Prefix command strings
+            prefix: 'Prefixo',
+            defaultPrefix: 'Padrão',
+            prefixSet: 'Prefixo configurado para',
+            prefixTooLong: 'O prefixo deve ter 10 caracteres ou menos',
+            prefixTooShort: 'O prefixo deve ter pelo menos 1 caractere'
         }
     }
 };

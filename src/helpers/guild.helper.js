@@ -76,9 +76,56 @@ async function getGuildString(key, guildId) {
     return lang.strings[key] || key;
 }
 
+/**
+ * Get the command prefix for a guild
+ * Falls back to DEFAULT_PREFIX from env if not set
+ * @param {string} guildId - Discord guild ID
+ * @returns {Promise<string>} Command prefix
+ */
+async function getGuildPrefix(guildId) {
+    const DEFAULT_PREFIX = process.env.PREFIX || 'jw!';
+
+    if (!guildId) {
+        return DEFAULT_PREFIX;
+    }
+
+    try {
+        const guild = await Guild.findOne({ id: guildId });
+        return guild?.prefix || DEFAULT_PREFIX;
+    } catch (err) {
+        console.error('Error getting guild prefix:', err);
+        return DEFAULT_PREFIX;
+    }
+}
+
+/**
+ * Set the command prefix for a guild
+ * @param {string} guildId - Discord guild ID
+ * @param {string} guildName - Discord guild name
+ * @param {string} prefix - New command prefix
+ * @returns {Promise<object>} Updated guild document
+ */
+async function setGuildPrefix(guildId, guildName, prefix) {
+    if (!prefix || prefix.length > 10) {
+        throw new Error('Prefix must be 1-10 characters');
+    }
+
+    return Guild.findOneAndUpdate(
+        { id: guildId },
+        {
+            id: guildId,
+            name: guildName,
+            prefix: prefix
+        },
+        { upsert: true, new: true }
+    );
+}
+
 module.exports = {
     getGuildLanguage,
     getGuildConfig,
     setGuildLanguage,
-    getGuildString
+    getGuildString,
+    getGuildPrefix,
+    setGuildPrefix
 };
