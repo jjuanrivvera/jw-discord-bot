@@ -1,23 +1,28 @@
 const { MessageEmbed } = require('discord.js');
-const { JwHelper } = require('../../helpers');
+const { JwHelper, GuildHelper } = require('../../helpers');
+const { getLanguage, getWolSearchUrl, EMBED_COLORS } = require('../../config/languages');
 
 module.exports.run = async (message, args) => {
-    //Discord message embed
-    let topicEmbed = new MessageEmbed().setColor("0x1D82B6");
-    
+    // Get per-guild language
+    const langCode = await GuildHelper.getGuildLanguage(message.guild.id);
+    const lang = getLanguage(langCode);
+
+    // Discord message embed
+    let topicEmbed = new MessageEmbed().setColor(EMBED_COLORS.PRIMARY);
+
     if (!args.length) {
-        message.channel.send("Tienes que especificar un tema").then(msg => msg.delete({ timeout: 3000 }));
+        message.channel.send(lang.strings.specifyTopic).then(msg => msg.delete({ timeout: 3000 }));
         return;
     }
 
     if (args[0] == "random") {
-        return JwHelper.sendRandomTopic(message.channel);
+        return JwHelper.sendRandomTopic(message.channel, langCode);
     }
 
     let topic = args.join('+');
 
-    topicEmbed.setTitle('JW Online Library');
-    topicEmbed.addField(`Aquí puedes encontrar más info acerca de "${topic}"`, `https://wol.jw.org/es/wol/s/r4/lp-s?q=${topic}&p=par&r=occ`);
+    topicEmbed.setTitle(lang.strings.jwOnlineLibrary);
+    topicEmbed.addField(`${lang.strings.moreInfoAbout} "${topic}"`, getWolSearchUrl(topic, langCode));
 
     message.channel.send(topicEmbed);
 }

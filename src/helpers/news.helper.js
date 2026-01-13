@@ -1,46 +1,144 @@
 const { MessageEmbed } = require('discord.js');
 const { RssFeed } = require('../util');
-const { New, Guild} = require('../models');
+const { New, Guild } = require('../models');
+const { GuildHelper } = require('./');
+const { getLanguage, getNewsRssUrl, getNewsTitleKeyword, EMBED_COLORS, DEFAULT_LANG } = require('../config/languages');
+const Sentry = require('../../sentry');
 
 module.exports = {
+    /**
+     * Check for new news and broadcast to all configured guilds
+     * Each guild receives news in its configured language
+     */
     async checkForNews(client) {
-        const rssFeed = new RssFeed('https://www.jw.org/es/noticias/testigos-de-jehova/rss/NewsSubsectionRSSFeed/feed.xml');
-        const news = await rssFeed.requestFeed();
+        try {
+            // Get all guilds with news channels configured
+            const servers = await Guild.find({ newsNotificationChannelId: { $exists: true, $ne: null } });
 
-        const lastNew = news.getItemsSortedByDate().slice(0, 1)[0];
+            if (servers.length === 0) {
+                console.log('No servers configured for news notifications');
+                return;
+            }
 
-        const lastStoredNew = await New.findOne().sort({ _id: -1 });
+            // Group servers by language for efficient RSS fetching
+            const serversByLang = this.groupServersByLanguage(servers);
 
-        const newNews = news.getItemsSortedByDate().filter(newItem => {
-            return new Date(lastStoredNew.isoDate) < new Date(newItem.isoDate);
-        });
+            // Process each language group
+            for (const [langCode, langServers] of Object.entries(serversByLang)) {
+                await this.processNewsForLanguage(client, langCode, langServers);
+            }
+        } catch (error) {
+            console.error('Error checking for news:', error);
+            Sentry.captureException(error);
+        }
+    },
 
-        for (const newItem of newNews) {
+    /**
+     * Group servers by their language setting
+     */
+    groupServersByLanguage(servers) {
+        return servers.reduce((acc, server) => {
+            const lang = server.language || DEFAULT_LANG;
+            if (!acc[lang]) {
+                acc[lang] = [];
+            }
+            acc[lang].push(server);
+            return acc;
+        }, {});
+    },
+
+    /**
+     * Process news for a specific language and its associated servers
+     */
+    async processNewsForLanguage(client, langCode, servers) {
+        try {
+            const rssFeed = new RssFeed(getNewsRssUrl(langCode));
+            const news = await rssFeed.requestFeed();
+
+            // Get last stored news for this language
+            const lastStoredNew = await New.findOne({ language: langCode }).sort({ _id: -1 });
+
+            if (!lastStoredNew) {
+                console.log(`No stored news found for language ${langCode}, skipping check`);
+                return;
+            }
+
+            const newNews = news.getItemsSortedByDate().filter(newItem => {
+                return new Date(lastStoredNew.isoDate) < new Date(newItem.isoDate);
+            });
+
+            for (const newItem of newNews) {
+                await this.broadcastNewsToServers(client, newItem, servers, langCode);
+                await this.saveNewsItem(newItem, langCode);
+            }
+        } catch (error) {
+            console.error(`Error processing news for language ${langCode}:`, error);
+            Sentry.captureException(error, { tags: { language: langCode } });
+        }
+    },
+
+    /**
+     * Broadcast a news item to specific servers
+     */
+    async broadcastNewsToServers(client, newItem, servers, langCode) {
+        const lang = getLanguage(langCode);
+        const titleKeyword = getNewsTitleKeyword(langCode);
+
+        for (const server of servers) {
             try {
-                const servers = await Guild.find({});
+                const guild = client.guilds.cache.get(`${server.id}`);
 
-                servers.forEach(async function (server) {
-                    const guild = client.guilds.cache.get(`${server.id}`);
-                    const channel = guild.channels.cache.find(channel => channel.name === server.newsNotificationChannel);
-                    
-                    const newsEmbed = new MessageEmbed()
-                        .setColor("0x1D82B6")
-                        .setTitle(newItem.title.replace('COMUNICADOS', 'Última noticia'))
-                        .addField(`Leer aquí:`, `${newItem.link}`);
+                if (!guild) {
+                    console.warn(`Guild ${server.id} not found in cache`);
+                    continue;
+                }
 
-                    channel.send(newsEmbed);
-                });
+                // Get channel by ID instead of name
+                const channel = guild.channels.cache.get(server.newsNotificationChannelId);
 
-                lastStoredNew.last = false;
-                lastStoredNew.save();
+                if (!channel) {
+                    console.warn(`Channel ID ${server.newsNotificationChannelId} not found in guild ${server.id}`);
+                    continue;
+                }
 
-                lastNew.last = true;
+                const newsEmbed = new MessageEmbed()
+                    .setColor(EMBED_COLORS.PRIMARY)
+                    .setTitle(newItem.title.replace(titleKeyword, lang.strings.latestNews))
+                    .addField(lang.strings.readHere, `${newItem.link}`);
 
-                New.create(lastNew);
-                console.log('Se registró una nueva noticia exitósamente');
+                await channel.send(newsEmbed);
             } catch (error) {
-                console.log(error);
+                console.error(`Failed to send news to guild ${server.id}:`, error);
+                Sentry.captureException(error, {
+                    tags: { guildId: server.id, newsItem: newItem.title, language: langCode }
+                });
             }
         }
+    },
+
+    /**
+     * Save a news item to the database
+     */
+    async saveNewsItem(newItem, langCode) {
+        try {
+            // Mark previous last news as not last
+            await New.updateMany(
+                { language: langCode, last: true },
+                { $set: { last: false } }
+            );
+
+            // Create new news entry
+            await New.create({
+                ...newItem,
+                language: langCode,
+                last: true
+            });
+
+            const lang = getLanguage(langCode);
+            console.log(`[${langCode}] ${lang.strings.newNewsRegistered}`);
+        } catch (error) {
+            console.error('Failed to save news item:', error);
+            Sentry.captureException(error);
+        }
     }
-}
+};

@@ -1,16 +1,23 @@
 const { MessageEmbed } = require('discord.js');
 const { RssFeed } = require('../../util');
+const { GuildHelper } = require('../../helpers');
+const { getNewsRssUrl, getNewsPageUrl, EMBED_COLORS } = require('../../config/languages');
 
 module.exports.run = async (message) => {
-    let feed = new RssFeed('https://www.jw.org/es/noticias/testigos-de-jehova/rss/NewsSubsectionRSSFeed/feed.xml');
+    // Get per-guild language
+    const langCode = await GuildHelper.getGuildLanguage(message.guild.id);
+
+    let feed = new RssFeed(getNewsRssUrl(langCode));
     feed = await feed.requestFeed();
 
-    //Discord message embed
-    const newsEmbed = new MessageEmbed().setColor("0x1D82B6")
+    const newsPageUrl = getNewsPageUrl(langCode);
+
+    // Discord message embed
+    const newsEmbed = new MessageEmbed().setColor(EMBED_COLORS.PRIMARY)
         .setTitle(feed.title)
         .setDescription(feed.description)
-        .setURL(`https://www.jw.org/es/noticias/testigos-de-jehova/#newsAlerts`)
-        .setFooter(`https://www.jw.org/es/noticias/testigos-de-jehova/#newsAlerts`);
+        .setURL(newsPageUrl)
+        .setFooter(newsPageUrl);
 
     // Get the first 5 items sort by date
     const items = feed.getItemsSortedByDate().slice(0, 4);

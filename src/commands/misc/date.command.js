@@ -1,12 +1,14 @@
 const { MessageEmbed } = require('discord.js');
+const { GuildHelper } = require('../../helpers');
+const { getLanguage, EMBED_COLORS } = require('../../config/languages');
 
 function isValidTimeZone(tz) {
     if (!Intl || !Intl.DateTimeFormat().resolvedOptions().timeZone) {
-        throw 'Time zones are not available in this environment';
+        throw new Error('Time zones are not available in this environment');
     }
 
     try {
-        Intl.DateTimeFormat(undefined, {timeZone: tz});
+        Intl.DateTimeFormat(undefined, { timeZone: tz });
         return true;
     } catch (ex) {
         return false;
@@ -14,19 +16,19 @@ function isValidTimeZone(tz) {
 }
 
 module.exports.run = async (message, args) => {
-    //Timezone
+    // Get per-guild language
+    const langCode = await GuildHelper.getGuildLanguage(message.guild.id);
+    const lang = getLanguage(langCode);
+
     const timeZone = args.length ? args[0] : Intl.DateTimeFormat().resolvedOptions().timeZone;
 
     if (!isValidTimeZone(timeZone)) {
-        return message.channel.send("La zona horaria ingresada no es válida").then(msg => msg.delete({ timeout: 3000}));
+        return message.channel.send(lang.strings.invalidTimezone).then(msg => msg.delete({ timeout: 3000 }));
     }
 
-    // Date object initialized from user's timezone. Returns a datetime string
     const dateStringFromTimeZone = new Date().toLocaleString("en-US", { timeZone: timeZone });
-
-    // Date object initialized from the above datetime string
     const date = new Date(dateStringFromTimeZone);
-    
+
     const day = ("0" + date.getDate()).slice(-2);
     const month = ("0" + (date.getMonth() + 1)).slice(-2);
     const year = date.getFullYear();
@@ -36,35 +38,35 @@ module.exports.run = async (message, args) => {
     const time_hh_mm_ss = hours + ":" + minutes + ":" + seconds;
 
     const dateEmbed = new MessageEmbed()
-        .setColor("0x1D82B6")
-        .setTitle("Today is:")
+        .setColor(EMBED_COLORS.PRIMARY)
+        .setTitle(lang.strings.todayIs)
         .addFields(
             {
-                name: "Day:",
+                name: lang.strings.day,
                 value: day
             },
             {
-                name: "Month:",
+                name: lang.strings.month,
                 value: month
             },
             {
-                name: "Year:",
-                value: year
+                name: lang.strings.year,
+                value: year.toString()
             },
             {
-                name: "Time:",
+                name: lang.strings.time,
                 value: time_hh_mm_ss
             },
             {
-                name: "Time Zone:",
+                name: lang.strings.timezone,
                 value: timeZone
-            },
+            }
         );
-    
+
     return message.channel.send(dateEmbed);
-}
+};
 
 module.exports.config = {
     name: "Date",
     command: "date"
-}
+};

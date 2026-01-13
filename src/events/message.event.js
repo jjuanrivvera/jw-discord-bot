@@ -1,5 +1,6 @@
-const discordPrefix = process.env.APP_PREFIX || 'jw!';
+const discordPrefix = process.env.PREFIX || 'jw!';
 const Sentry = require('../../sentry');
+const { getString } = require('../config/languages');
 
 module.exports = {
 	name: 'message',
@@ -12,11 +13,11 @@ module.exports = {
 
         if (discordCommand) {
             try {
-                await discordCommand.run(message, args, client); //Executes the given command
+                await discordCommand.run(message, args, client); // Executes the given command
             } catch (err) {
-                console.log(err);
+                console.error('Command execution error:', err);
                 Sentry.captureException(err);
-                await message.channel.send("An error ocurred performing this action").then(msg => msg.delete({ timeout: 3000 }));
+                await message.channel.send(getString('commandError')).then(msg => msg.delete({ timeout: 3000 }));
             }
         }
 	}

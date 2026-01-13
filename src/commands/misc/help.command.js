@@ -1,22 +1,26 @@
 const { MessageEmbed } = require('discord.js');
 const { Command } = require('../../models');
+const { GuildHelper } = require('../../helpers');
+const { getLanguage, EMBED_COLORS } = require('../../config/languages');
 
 module.exports.run = async (message, args) => {
+    // Get per-guild language
+    const langCode = await GuildHelper.getGuildLanguage(message.guild.id);
+    const lang = getLanguage(langCode);
+
     if (!args.length) {
-        await Command.find({}, async function(err, commands) {
-            let commandMap = [];
-            let help = new MessageEmbed().setColor("0x1D82B6");
-            help.setTitle("Available Command List");
+        const commands = await Command.find({});
 
-            commands.forEach(function(command) {
-                if (command.group === "User") {
-                    help.addField(`${command.name}`, `**Description:** ${command.description}\n**Usage:** ${command.usage}`);
-                }
-                commandMap.push(command);
-            });
+        let help = new MessageEmbed().setColor(EMBED_COLORS.PRIMARY);
+        help.setTitle(lang.strings.availableCommands || "Available Command List");
 
-            message.channel.send(help);
+        commands.forEach(function(command) {
+            if (command.group === "User") {
+                help.addField(`${command.name}`, `**${lang.strings.description || 'Description'}:** ${command.description}\n**${lang.strings.usage || 'Usage'}:** ${command.usage}`);
+            }
         });
+
+        return message.channel.send(help);
     }
 }
 

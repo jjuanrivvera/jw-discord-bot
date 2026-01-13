@@ -1,53 +1,51 @@
 const { MessageEmbed } = require('discord.js');
 const { Text, Topic } = require('../models');
 const Sentry = require('../../sentry');
+const { getLanguage, getWolSearchUrl, EMBED_COLORS, DEFAULT_LANG } = require('../config/languages');
 
-// const chunkString = (s, maxBytes) => {
-//     let buf = Buffer.from(s);
-//     const result = [];
-//     while (buf.length) {
-//         let i = buf.lastIndexOf(32, maxBytes+1);
-//         // If no space found, try forward search
-//         if (i < 0) i = buf.indexOf(32, maxBytes);
-//         // If there's no space at all, take the whole string
-//         if (i < 0) i = buf.length;
-//         // This is a safe cut-off point; never half-way a multi-byte
-//         result.push(buf.slice(0, i).toString());
-//         buf = buf.slice(i+1); // Skip space (if any)
-//     }
-//     return result;
-// }
-
+/**
+ * Split a string into chunks of specified length
+ * @param {string} str - String to split
+ * @param {number} len - Maximum length of each chunk
+ * @returns {Array<string>} Array of string chunks
+ */
 const chunkString = (str, len) => {
     const size = Math.ceil(str.length / len);
-    const r = Array(size);
+    const result = Array(size);
     let offset = 0;
 
     for (let i = 0; i < size; i++) {
-        r[i] = str.substr(offset, len);
+        result[i] = str.substring(offset, offset + len);
         offset += len;
     }
 
-    return r;
-}
+    return result;
+};
 
 module.exports = {
-    async getDailyText(dateString) {
-        const text = await Text.findOne({ date : dateString});
+    /**
+     * Get daily text embeds for a specific date
+     * @param {string} dateString - Date in YYYY-MM-DD format
+     * @param {string} langCode - Language code (default: DEFAULT_LANG)
+     * @returns {Array<MessageEmbed>|undefined} Array of embeds or undefined if not found
+     */
+    async getDailyText(dateString, langCode = DEFAULT_LANG) {
+        const lang = getLanguage(langCode);
+        const text = await Text.findOne({ date: dateString });
 
         if (!text) {
-            console.log("No pude obtener el texto del día");
+            console.log(`[${langCode}] ${lang.strings.couldNotGetText}`);
             return;
         }
 
         const embeds = [];
-        const chunk = chunkString(`${text.explanation}`, 1024);
+        const chunks = chunkString(`${text.explanation}`, 1024);
 
-        chunk.forEach(element => {
-            //Discord message embed
-            const dailyText = new MessageEmbed().setColor("0x1D82B6")
-                .setTitle('Texto Diario')
-                .addField(`${text.textContent} ${text.text}`, `${element}`);
+        chunks.forEach(chunk => {
+            const dailyText = new MessageEmbed()
+                .setColor(EMBED_COLORS.PRIMARY)
+                .setTitle(lang.strings.dailyText)
+                .addField(`${text.textContent} ${text.text}`, `${chunk}`);
 
             embeds.push(dailyText);
         });
@@ -55,38 +53,51 @@ module.exports = {
         return embeds;
     },
 
+    /**
+     * Get a random topic from the database
+     * @returns {Object} Topic document
+     */
     async getRandomTopic() {
         const topicCount = await Topic.countDocuments();
-
         const random = Math.floor(Math.random() * topicCount);
-
         const topic = await Topic.findOne().skip(random);
 
         return topic;
     },
 
-    async sendRandomTopic(channel) {
+    /**
+     * Send a random topic to a channel
+     * @param {Channel} channel - Discord channel to send to
+     * @param {string} langCode - Language code (default: DEFAULT_LANG)
+     */
+    async sendRandomTopic(channel, langCode = DEFAULT_LANG) {
         try {
+            const lang = getLanguage(langCode);
             const topic = await this.getRandomTopic();
 
+            if (!topic) {
+                console.log(`[${langCode}] No topics found`);
+                return;
+            }
+
             const topicEmbed = new MessageEmbed()
-                .setColor("0x1D82B6")
+                .setColor(EMBED_COLORS.PRIMARY)
                 .setTitle(topic.name)
                 .addFields(
                     {
-                        name: "Consideremos:",
+                        name: lang.strings.consider,
                         value: topic.discussion
                     },
                     {
-                        name: "Busqueda",
-                        value: `https://wol.jw.org/es/wol/s/r4/lp-s?q=${topic.query}&p=par&r=occ`
+                        name: lang.strings.search,
+                        value: getWolSearchUrl(topic.query, langCode)
                     }
                 );
 
             return channel.send(topicEmbed);
         } catch (err) {
-            console.log(err);
+            console.error('Error sending random topic:', err);
             Sentry.captureException(err);
         }
     }
-}
+};
