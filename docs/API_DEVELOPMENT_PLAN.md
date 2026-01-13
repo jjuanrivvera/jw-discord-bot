@@ -270,12 +270,198 @@ module.exports = mongoose.model("new", newSchema);
 - Added `language` field
 - Added proper types
 
-### Step 1.4: Verify Other Models
+### Step 1.4: Update Remaining Models
 
-Check these models match the bot:
-- `text.model.js` - Daily texts
-- `topic.model.js` - Discussion topics
-- `user.model.js` - User profiles
+#### Text Model
+
+**File:** `src/models/text.model.js`
+
+```javascript
+const mongoose = require("mongoose");
+
+const textSchema = new mongoose.Schema({
+    date: {
+        type: String,
+        required: true,
+        unique: true,
+        index: true,
+        validate: {
+            validator: function(v) {
+                return /^\d{4}-\d{2}-\d{2}$/.test(v);
+            },
+            message: props => `${props.value} is not a valid date format (YYYY-MM-DD)`
+        }
+    },
+    text: {
+        type: String,
+        required: true
+    },
+    textContent: {
+        type: String,
+        required: true
+    },
+    explanation: {
+        type: String,
+        required: true
+    }
+}, {
+    timestamps: true
+});
+
+// Index for date range queries
+textSchema.index({ date: 1 });
+
+module.exports = mongoose.model("text", textSchema);
+```
+
+**Schema Fields:**
+- `date` - YYYY-MM-DD format (unique key for each daily text)
+- `text` - Scripture reference (e.g., "Proverbios 3:5")
+- `textContent` - The actual Bible verse text
+- `explanation` - Commentary/explanation for the day
+
+#### Topic Model
+
+**File:** `src/models/topic.model.js`
+
+```javascript
+const mongoose = require("mongoose");
+
+const topicSchema = new mongoose.Schema({
+    name: {
+        type: String,
+        required: true
+    },
+    discussion: {
+        type: String,
+        required: true
+    },
+    query: {
+        type: String,
+        default: ''
+    }
+}, {
+    timestamps: true
+});
+
+// Text index for searching topics
+topicSchema.index({ name: 'text', discussion: 'text' });
+
+module.exports = mongoose.model("topic", topicSchema);
+```
+
+**Schema Fields:**
+- `name` - Topic title (e.g., "Faith", "Love")
+- `discussion` - Discussion question or description
+- `query` - Search query for WOL library (optional)
+
+#### User Model
+
+**File:** `src/models/user.model.js`
+
+```javascript
+const mongoose = require("mongoose");
+
+const userSchema = new mongoose.Schema({
+    discordId: {
+        type: String,
+        required: true,
+        unique: true,
+        index: true
+    },
+    username: {
+        type: String,
+        required: true
+    },
+    discriminator: {
+        type: String,
+        default: '0'
+    },
+    avatar: {
+        type: String,
+        default: null
+    },
+    email: {
+        type: String,
+        default: null
+    },
+    accessToken: {
+        type: String,
+        default: null
+    },
+    refreshToken: {
+        type: String,
+        default: null
+    },
+    role: {
+        type: String,
+        enum: ['user', 'admin'],
+        default: 'user'
+    },
+    lastLogin: {
+        type: Date,
+        default: Date.now
+    }
+}, {
+    timestamps: true
+});
+
+// Virtual for full Discord tag
+userSchema.virtual('tag').get(function() {
+    if (this.discriminator === '0') {
+        return this.username;
+    }
+    return `${this.username}#${this.discriminator}`;
+});
+
+// Method to update tokens
+userSchema.methods.updateTokens = function(accessToken, refreshToken) {
+    this.accessToken = accessToken;
+    this.refreshToken = refreshToken;
+    this.lastLogin = new Date();
+    return this.save();
+};
+
+// Static method to find or create user from Discord data
+userSchema.statics.findOrCreateFromDiscord = async function(discordUser, tokens = {}) {
+    let user = await this.findOne({ discordId: discordUser.id });
+
+    if (user) {
+        user.username = discordUser.username;
+        user.discriminator = discordUser.discriminator || '0';
+        user.avatar = discordUser.avatar;
+        if (tokens.accessToken) user.accessToken = tokens.accessToken;
+        if (tokens.refreshToken) user.refreshToken = tokens.refreshToken;
+        user.lastLogin = new Date();
+        await user.save();
+    } else {
+        user = await this.create({
+            discordId: discordUser.id,
+            username: discordUser.username,
+            discriminator: discordUser.discriminator || '0',
+            avatar: discordUser.avatar,
+            email: discordUser.email,
+            accessToken: tokens.accessToken,
+            refreshToken: tokens.refreshToken
+        });
+    }
+
+    return user;
+};
+
+module.exports = mongoose.model("user", userSchema);
+```
+
+**Schema Fields:**
+- `discordId` - Discord user ID (unique identifier)
+- `username` - Discord username
+- `discriminator` - Discord discriminator (legacy, now '0' for new usernames)
+- `avatar` - Avatar hash for Discord CDN
+- `email` - User email (from Discord OAuth, optional)
+- `accessToken` - Discord OAuth access token
+- `refreshToken` - Discord OAuth refresh token
+- `role` - User role in the system (user/admin)
+- `lastLogin` - Last login timestamp
 
 ---
 
@@ -825,38 +1011,648 @@ module.exports = DashboardService;
 **Priority:** MEDIUM
 **Estimated Time:** 4-6 hours
 
-### Daily Texts Endpoints
+### Step 5.1: Create Pagination Utility
+
+**File:** `src/utils/pagination.js` (NEW)
 
 ```javascript
-// Routes: src/routes/text.routes.js
-GET  /texts              // List texts (paginated)
-GET  /texts/:date        // Get by date (YYYY-MM-DD)
-POST /texts/import       // Bulk import (admin only)
+/**
+ * Paginate Mongoose query results
+ * @param {Model} model - Mongoose model
+ * @param {Object} query - Query filter
+ * @param {Object} options - Pagination options
+ * @returns {Object} Paginated results
+ */
+async function paginate(model, query = {}, options = {}) {
+    const page = Math.max(1, parseInt(options.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(options.limit) || 20));
+    const skip = (page - 1) * limit;
+    const sort = options.sort || { createdAt: -1 };
 
-// Query params for list:
-// ?page=1&limit=20&language=es
+    const [data, total] = await Promise.all([
+        model.find(query).sort(sort).skip(skip).limit(limit),
+        model.countDocuments(query)
+    ]);
+
+    return {
+        data,
+        pagination: {
+            page,
+            limit,
+            total,
+            pages: Math.ceil(total / limit),
+            hasNext: page * limit < total,
+            hasPrev: page > 1
+        }
+    };
+}
+
+module.exports = { paginate };
 ```
 
-### News Endpoints
+### Step 5.2: Daily Texts Endpoints
+
+#### Text Routes
+
+**File:** `src/routes/text.routes.js` (NEW)
 
 ```javascript
-// Routes: src/routes/news.routes.js
-GET /news                // List news (paginated)
-GET /news/latest         // Get latest by language
+const { Router } = require("express");
+const { AuthMiddleware } = require("../middlewares");
 
-// Query params:
-// ?page=1&limit=20&language=es
+module.exports = function ({ TextController }) {
+    const router = Router();
+
+    // Public routes (no auth required for reading)
+    router.get("/", TextController.list);
+    router.get("/:date", TextController.getByDate);
+
+    // Admin routes
+    router.post("/import", AuthMiddleware, TextController.bulkImport);
+
+    return router;
+};
 ```
 
-### Topics Endpoints
+#### Text Controller
+
+**File:** `src/controllers/text.controller.js` (NEW)
 
 ```javascript
-// Routes: src/routes/topic.routes.js
-GET    /topics           // List topics (paginated)
-GET    /topics/random    // Get random topic
-POST   /topics           // Create topic (admin)
-PUT    /topics/:id       // Update topic (admin)
-DELETE /topics/:id       // Delete topic (admin)
+let _textService = null;
+
+class TextController {
+    constructor({ TextService }) {
+        _textService = TextService;
+    }
+
+    async list(req, res) {
+        try {
+            const { page, limit, language } = req.query;
+            const result = await _textService.list({ page, limit, language });
+            return res.json(result);
+        } catch (error) {
+            console.error('Error listing texts:', error);
+            return res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+
+    async getByDate(req, res) {
+        try {
+            const { date } = req.params;
+
+            // Validate date format (YYYY-MM-DD)
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+                return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD' });
+            }
+
+            const text = await _textService.getByDate(date);
+
+            if (!text) {
+                return res.status(404).json({ error: 'Text not found for this date' });
+            }
+
+            return res.json(text);
+        } catch (error) {
+            console.error('Error getting text:', error);
+            return res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+
+    async bulkImport(req, res) {
+        try {
+            // Check admin role (you may want more sophisticated role checking)
+            if (!req.user || req.user.role !== 'admin') {
+                return res.status(403).json({ error: 'Admin access required' });
+            }
+
+            const { texts } = req.body;
+
+            if (!Array.isArray(texts) || texts.length === 0) {
+                return res.status(400).json({ error: 'texts must be a non-empty array' });
+            }
+
+            const result = await _textService.bulkImport(texts);
+            return res.status(201).json(result);
+        } catch (error) {
+            console.error('Error importing texts:', error);
+            return res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+}
+
+module.exports = TextController;
+```
+
+#### Text Service
+
+**File:** `src/services/text.service.js` (NEW)
+
+```javascript
+const BaseService = require('./base.service');
+const { paginate } = require('../utils/pagination');
+
+class TextService extends BaseService {
+    constructor({ TextRepository, Text }) {
+        super(TextRepository);
+        this.repository = TextRepository;
+        this.model = Text;
+    }
+
+    async list(options = {}) {
+        const query = {};
+
+        // Language filtering is not typically used for texts
+        // but could be added if multi-language texts are stored
+
+        return await paginate(this.model, query, {
+            page: options.page,
+            limit: options.limit,
+            sort: { date: -1 }
+        });
+    }
+
+    async getByDate(date) {
+        return await this.repository.findByDate(date);
+    }
+
+    async bulkImport(texts) {
+        const operations = texts.map(text => ({
+            updateOne: {
+                filter: { date: text.date },
+                update: { $set: text },
+                upsert: true
+            }
+        }));
+
+        const result = await this.model.bulkWrite(operations);
+
+        return {
+            imported: result.upsertedCount,
+            updated: result.modifiedCount,
+            total: texts.length
+        };
+    }
+}
+
+module.exports = TextService;
+```
+
+#### Text Repository
+
+**File:** `src/repositories/text.repository.js` (NEW)
+
+```javascript
+const BaseRepository = require('./base.repository');
+
+class TextRepository extends BaseRepository {
+    constructor({ Text }) {
+        super(Text);
+    }
+
+    async findByDate(date) {
+        return await this.model.findOne({ date });
+    }
+
+    async findByDateRange(startDate, endDate) {
+        return await this.model.find({
+            date: { $gte: startDate, $lte: endDate }
+        }).sort({ date: 1 });
+    }
+}
+
+module.exports = TextRepository;
+```
+
+### Step 5.3: News Endpoints
+
+#### News Routes
+
+**File:** `src/routes/news.routes.js` (NEW)
+
+```javascript
+const { Router } = require("express");
+
+module.exports = function ({ NewsController }) {
+    const router = Router();
+
+    // All news routes are public (read-only)
+    router.get("/", NewsController.list);
+    router.get("/latest", NewsController.getLatest);
+
+    return router;
+};
+```
+
+#### News Controller
+
+**File:** `src/controllers/news.controller.js` (NEW)
+
+```javascript
+let _newsService = null;
+
+class NewsController {
+    constructor({ NewsService }) {
+        _newsService = NewsService;
+    }
+
+    async list(req, res) {
+        try {
+            const { page, limit, language } = req.query;
+            const result = await _newsService.list({ page, limit, language });
+            return res.json(result);
+        } catch (error) {
+            console.error('Error listing news:', error);
+            return res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+
+    async getLatest(req, res) {
+        try {
+            const { language } = req.query;
+            const validLanguages = ['es', 'en', 'pt'];
+
+            if (language && !validLanguages.includes(language)) {
+                return res.status(400).json({
+                    error: 'Invalid language. Must be one of: es, en, pt'
+                });
+            }
+
+            const news = await _newsService.getLatest(language || 'es');
+
+            if (!news) {
+                return res.status(404).json({ error: 'No news found' });
+            }
+
+            return res.json(news);
+        } catch (error) {
+            console.error('Error getting latest news:', error);
+            return res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+}
+
+module.exports = NewsController;
+```
+
+#### News Service
+
+**File:** `src/services/news.service.js` (NEW)
+
+```javascript
+const BaseService = require('./base.service');
+const { paginate } = require('../utils/pagination');
+
+class NewsService extends BaseService {
+    constructor({ NewsRepository, New }) {
+        super(NewsRepository);
+        this.repository = NewsRepository;
+        this.model = New;
+    }
+
+    async list(options = {}) {
+        const query = {};
+
+        if (options.language) {
+            query.language = options.language;
+        }
+
+        return await paginate(this.model, query, {
+            page: options.page,
+            limit: options.limit,
+            sort: { pubDate: -1 }
+        });
+    }
+
+    async getLatest(language = 'es') {
+        return await this.repository.findLatestByLanguage(language);
+    }
+}
+
+module.exports = NewsService;
+```
+
+#### News Repository
+
+**File:** `src/repositories/news.repository.js` (NEW)
+
+```javascript
+const BaseRepository = require('./base.repository');
+
+class NewsRepository extends BaseRepository {
+    constructor({ New }) {
+        super(New);
+    }
+
+    async findLatestByLanguage(language) {
+        return await this.model.findOne({
+            language,
+            last: true
+        });
+    }
+
+    async findByLanguage(language, limit = 20) {
+        return await this.model.find({ language })
+            .sort({ pubDate: -1 })
+            .limit(limit);
+    }
+}
+
+module.exports = NewsRepository;
+```
+
+### Step 5.4: Topics Endpoints
+
+#### Topic Routes
+
+**File:** `src/routes/topic.routes.js` (NEW)
+
+```javascript
+const { Router } = require("express");
+const { AuthMiddleware } = require("../middlewares");
+
+module.exports = function ({ TopicController }) {
+    const router = Router();
+
+    // Public routes
+    router.get("/", TopicController.list);
+    router.get("/random", TopicController.getRandom);
+    router.get("/:id", TopicController.getById);
+
+    // Admin routes
+    router.post("/", AuthMiddleware, TopicController.create);
+    router.put("/:id", AuthMiddleware, TopicController.update);
+    router.delete("/:id", AuthMiddleware, TopicController.delete);
+
+    return router;
+};
+```
+
+#### Topic Controller
+
+**File:** `src/controllers/topic.controller.js` (NEW)
+
+```javascript
+let _topicService = null;
+
+class TopicController {
+    constructor({ TopicService }) {
+        _topicService = TopicService;
+    }
+
+    async list(req, res) {
+        try {
+            const { page, limit } = req.query;
+            const result = await _topicService.list({ page, limit });
+            return res.json(result);
+        } catch (error) {
+            console.error('Error listing topics:', error);
+            return res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+
+    async getById(req, res) {
+        try {
+            const { id } = req.params;
+            const topic = await _topicService.get(id);
+
+            if (!topic) {
+                return res.status(404).json({ error: 'Topic not found' });
+            }
+
+            return res.json(topic);
+        } catch (error) {
+            console.error('Error getting topic:', error);
+            return res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+
+    async getRandom(req, res) {
+        try {
+            const topic = await _topicService.getRandom();
+
+            if (!topic) {
+                return res.status(404).json({ error: 'No topics available' });
+            }
+
+            return res.json(topic);
+        } catch (error) {
+            console.error('Error getting random topic:', error);
+            return res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+
+    async create(req, res) {
+        try {
+            if (!req.user || req.user.role !== 'admin') {
+                return res.status(403).json({ error: 'Admin access required' });
+            }
+
+            const { name, discussion, query } = req.body;
+
+            if (!name || !discussion) {
+                return res.status(400).json({
+                    error: 'name and discussion are required'
+                });
+            }
+
+            const topic = await _topicService.create({
+                name,
+                discussion,
+                query: query || ''
+            });
+
+            return res.status(201).json(topic);
+        } catch (error) {
+            console.error('Error creating topic:', error);
+            return res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+
+    async update(req, res) {
+        try {
+            if (!req.user || req.user.role !== 'admin') {
+                return res.status(403).json({ error: 'Admin access required' });
+            }
+
+            const { id } = req.params;
+            const { name, discussion, query } = req.body;
+
+            const topic = await _topicService.update(id, {
+                name,
+                discussion,
+                query
+            });
+
+            if (!topic) {
+                return res.status(404).json({ error: 'Topic not found' });
+            }
+
+            return res.json(topic);
+        } catch (error) {
+            console.error('Error updating topic:', error);
+            return res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+
+    async delete(req, res) {
+        try {
+            if (!req.user || req.user.role !== 'admin') {
+                return res.status(403).json({ error: 'Admin access required' });
+            }
+
+            const { id } = req.params;
+            const deleted = await _topicService.delete(id);
+
+            if (!deleted) {
+                return res.status(404).json({ error: 'Topic not found' });
+            }
+
+            return res.status(204).send();
+        } catch (error) {
+            console.error('Error deleting topic:', error);
+            return res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+}
+
+module.exports = TopicController;
+```
+
+#### Topic Service
+
+**File:** `src/services/topic.service.js` (NEW)
+
+```javascript
+const BaseService = require('./base.service');
+const { paginate } = require('../utils/pagination');
+
+class TopicService extends BaseService {
+    constructor({ TopicRepository, Topic }) {
+        super(TopicRepository);
+        this.repository = TopicRepository;
+        this.model = Topic;
+    }
+
+    async list(options = {}) {
+        return await paginate(this.model, {}, {
+            page: options.page,
+            limit: options.limit,
+            sort: { createdAt: -1 }
+        });
+    }
+
+    async getRandom() {
+        return await this.repository.findRandom();
+    }
+}
+
+module.exports = TopicService;
+```
+
+#### Topic Repository
+
+**File:** `src/repositories/topic.repository.js` (NEW)
+
+```javascript
+const BaseRepository = require('./base.repository');
+
+class TopicRepository extends BaseRepository {
+    constructor({ Topic }) {
+        super(Topic);
+    }
+
+    async findRandom() {
+        const count = await this.model.countDocuments();
+        if (count === 0) return null;
+
+        const random = Math.floor(Math.random() * count);
+        return await this.model.findOne().skip(random);
+    }
+
+    async search(query) {
+        return await this.model.find({
+            $or: [
+                { name: { $regex: query, $options: 'i' } },
+                { discussion: { $regex: query, $options: 'i' } }
+            ]
+        });
+    }
+}
+
+module.exports = TopicRepository;
+```
+
+### Step 5.5: Register Content Endpoints in DI Container
+
+**File:** `src/startup/container.js` (additions)
+
+```javascript
+// Import content components
+const TextService = require("../services/text.service");
+const TextController = require("../controllers/text.controller");
+const TextRepository = require("../repositories/text.repository");
+const TextRoutes = require("../routes/text.routes");
+
+const NewsService = require("../services/news.service");
+const NewsController = require("../controllers/news.controller");
+const NewsRepository = require("../repositories/news.repository");
+const NewsRoutes = require("../routes/news.routes");
+
+const TopicService = require("../services/topic.service");
+const TopicController = require("../controllers/topic.controller");
+const TopicRepository = require("../repositories/topic.repository");
+const TopicRoutes = require("../routes/topic.routes");
+
+// Register in container
+container
+    // Text components
+    .register({
+        TextRepository: asClass(TextRepository).singleton(),
+        TextService: asClass(TextService).singleton(),
+        TextController: asClass(TextController.bind(TextController)).singleton(),
+        TextRoutes: asFunction(TextRoutes).singleton(),
+    })
+    // News components
+    .register({
+        NewsRepository: asClass(NewsRepository).singleton(),
+        NewsService: asClass(NewsService).singleton(),
+        NewsController: asClass(NewsController.bind(NewsController)).singleton(),
+        NewsRoutes: asFunction(NewsRoutes).singleton(),
+    })
+    // Topic components
+    .register({
+        TopicRepository: asClass(TopicRepository).singleton(),
+        TopicService: asClass(TopicService).singleton(),
+        TopicController: asClass(TopicController.bind(TopicController)).singleton(),
+        TopicRoutes: asFunction(TopicRoutes).singleton(),
+    });
+```
+
+### Step 5.6: Add Content Routes to Main Router
+
+**File:** `src/routes/index.js` (additions)
+
+```javascript
+module.exports = function ({
+    AuthRoutes,
+    GuildRoutes,
+    UserRoutes,
+    ScheduleRoutes,
+    DashboardRoutes,
+    TextRoutes,
+    NewsRoutes,
+    TopicRoutes
+}) {
+    // ... existing code ...
+
+    // Content routes
+    apiRoutes.use("/texts", TextRoutes);
+    apiRoutes.use("/news", NewsRoutes);
+    apiRoutes.use("/topics", TopicRoutes);
+
+    return router;
+};
 ```
 
 ---
@@ -928,45 +1724,628 @@ app.use('/docs', swaggerUi.serve, swaggerUi.setup(specs));
 
 ## Testing Strategy
 
-### Unit Tests
+### Step T.1: Jest Configuration
+
+**File:** `jest.config.js`
 
 ```javascript
-// tests/services/guild.service.test.js
+module.exports = {
+    testEnvironment: 'node',
+    roots: ['<rootDir>/tests'],
+    testMatch: ['**/*.test.js'],
+    collectCoverageFrom: [
+        'src/**/*.js',
+        '!src/startup/**',
+        '!src/config/**'
+    ],
+    coverageThreshold: {
+        global: {
+            branches: 70,
+            functions: 80,
+            lines: 80,
+            statements: 80
+        }
+    },
+    setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
+    verbose: true,
+    testTimeout: 10000
+};
+```
+
+### Step T.2: Test Setup
+
+**File:** `tests/setup.js`
+
+```javascript
+const mongoose = require('mongoose');
+const { MongoMemoryServer } = require('mongodb-memory-server');
+
+let mongoServer;
+
+// Connect to in-memory database before all tests
+beforeAll(async () => {
+    mongoServer = await MongoMemoryServer.create();
+    const mongoUri = mongoServer.getUri();
+    await mongoose.connect(mongoUri);
+});
+
+// Clear database between tests
+afterEach(async () => {
+    const collections = mongoose.connection.collections;
+    for (const key in collections) {
+        await collections[key].deleteMany({});
+    }
+});
+
+// Disconnect and stop server after all tests
+afterAll(async () => {
+    await mongoose.disconnect();
+    await mongoServer.stop();
+});
+```
+
+### Step T.3: Test Utilities
+
+**File:** `tests/utils/test-helpers.js`
+
+```javascript
+const jwt = require('jsonwebtoken');
+const config = require('../../src/config');
+
+/**
+ * Generate a valid JWT token for testing
+ */
+function generateTestToken(user = {}) {
+    const payload = {
+        id: user.id || 'test-user-123',
+        discordId: user.discordId || '123456789',
+        username: user.username || 'testuser',
+        role: user.role || 'user'
+    };
+
+    return jwt.sign(payload, config.jwt.secret, {
+        expiresIn: '1h'
+    });
+}
+
+/**
+ * Generate an admin token
+ */
+function generateAdminToken() {
+    return generateTestToken({ role: 'admin' });
+}
+
+/**
+ * Create a mock Express request
+ */
+function mockRequest(overrides = {}) {
+    return {
+        params: {},
+        query: {},
+        body: {},
+        user: null,
+        headers: {},
+        ...overrides
+    };
+}
+
+/**
+ * Create a mock Express response
+ */
+function mockResponse() {
+    const res = {};
+    res.status = jest.fn().mockReturnValue(res);
+    res.json = jest.fn().mockReturnValue(res);
+    res.send = jest.fn().mockReturnValue(res);
+    return res;
+}
+
+module.exports = {
+    generateTestToken,
+    generateAdminToken,
+    mockRequest,
+    mockResponse
+};
+```
+
+### Step T.4: Unit Tests
+
+#### Guild Service Tests
+
+**File:** `tests/unit/services/guild.service.test.js`
+
+```javascript
+const GuildService = require('../../../src/services/guild.service');
+
 describe('GuildService', () => {
-    describe('userHasAdminAccess', () => {
-        it('should return true for guild owner', async () => {
-            // ...
+    let guildService;
+    let mockGuildRepository;
+    let mockClient;
+
+    beforeEach(() => {
+        mockGuildRepository = {
+            findByGuildId: jest.fn(),
+            upsertByGuildId: jest.fn(),
+            getAll: jest.fn()
+        };
+
+        mockClient = {
+            guilds: {
+                fetch: jest.fn(),
+                cache: new Map()
+            }
+        };
+
+        guildService = new GuildService({
+            GuildRepository: mockGuildRepository,
+            client: mockClient
+        });
+    });
+
+    describe('getConfig', () => {
+        it('should return guild config when found', async () => {
+            const mockConfig = { id: '123', language: 'es' };
+            mockGuildRepository.findByGuildId.mockResolvedValue(mockConfig);
+
+            const result = await guildService.getConfig('123');
+
+            expect(mockGuildRepository.findByGuildId).toHaveBeenCalledWith('123');
+            expect(result).toEqual(mockConfig);
         });
 
-        it('should return true for admin permission', async () => {
-            // ...
+        it('should return null when guild not found', async () => {
+            mockGuildRepository.findByGuildId.mockResolvedValue(null);
+
+            const result = await guildService.getConfig('999');
+
+            expect(result).toBeNull();
+        });
+    });
+
+    describe('updateConfig', () => {
+        it('should update guild configuration', async () => {
+            const config = { language: 'en', prefix: '!' };
+            const updatedConfig = { id: '123', ...config };
+            mockGuildRepository.upsertByGuildId.mockResolvedValue(updatedConfig);
+
+            const result = await guildService.updateConfig('123', config);
+
+            expect(mockGuildRepository.upsertByGuildId).toHaveBeenCalledWith('123', config);
+            expect(result).toEqual(updatedConfig);
+        });
+    });
+
+    describe('userHasAccess', () => {
+        it('should return true when user is member of guild', async () => {
+            const user = { id: 'user-1' };
+            mockGuildRepository.getAll.mockResolvedValue([
+                { id: '123', name: 'Test Guild' },
+                { id: '456', name: 'Other Guild' }
+            ]);
+
+            const result = await guildService.userHasAccess(user, '123');
+
+            expect(result).toBe(true);
+        });
+
+        it('should return false when user is not member', async () => {
+            const user = { id: 'user-1' };
+            mockGuildRepository.getAll.mockResolvedValue([
+                { id: '456', name: 'Other Guild' }
+            ]);
+
+            const result = await guildService.userHasAccess(user, '123');
+
+            expect(result).toBe(false);
+        });
+    });
+
+    describe('userHasAdminAccess', () => {
+        it('should return true for guild owner', async () => {
+            const user = { id: 'user-1' };
+            mockGuildRepository.getAll.mockResolvedValue([
+                { id: '123', name: 'Test Guild', owner: true, permissions: 0 }
+            ]);
+
+            const result = await guildService.userHasAdminAccess(user, '123');
+
+            expect(result).toBe(true);
+        });
+
+        it('should return true for admin permission (0x8)', async () => {
+            const user = { id: 'user-1' };
+            mockGuildRepository.getAll.mockResolvedValue([
+                { id: '123', name: 'Test Guild', owner: false, permissions: 0x8 }
+            ]);
+
+            const result = await guildService.userHasAdminAccess(user, '123');
+
+            expect(result).toBe(true);
         });
 
         it('should return false for regular member', async () => {
-            // ...
+            const user = { id: 'user-1' };
+            mockGuildRepository.getAll.mockResolvedValue([
+                { id: '123', name: 'Test Guild', owner: false, permissions: 0 }
+            ]);
+
+            const result = await guildService.userHasAdminAccess(user, '123');
+
+            expect(result).toBe(false);
+        });
+
+        it('should return false when user not in guild', async () => {
+            const user = { id: 'user-1' };
+            mockGuildRepository.getAll.mockResolvedValue([]);
+
+            const result = await guildService.userHasAdminAccess(user, '123');
+
+            expect(result).toBe(false);
         });
     });
 });
 ```
 
-### Integration Tests
+#### Schedule Service Tests
+
+**File:** `tests/unit/services/schedule.service.test.js`
 
 ```javascript
-// tests/routes/guild.routes.test.js
-describe('GET /api/v1/guilds/:id/config', () => {
-    it('should return guild config for authorized user', async () => {
-        const res = await request(app)
-            .get('/api/v1/guilds/123/config')
-            .set('Authorization', `Bearer ${validToken}`);
+const ScheduleService = require('../../../src/services/schedule.service');
 
-        expect(res.status).toBe(200);
-        expect(res.body).toHaveProperty('language');
+describe('ScheduleService', () => {
+    let scheduleService;
+    let mockRepository;
+
+    beforeEach(() => {
+        mockRepository = {
+            findByGuild: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
+            delete: jest.fn(),
+            get: jest.fn()
+        };
+
+        scheduleService = new ScheduleService({
+            ScheduleRepository: mockRepository
+        });
     });
 
-    it('should return 403 for unauthorized user', async () => {
-        // ...
+    describe('getByGuild', () => {
+        it('should return all schedules for a guild', async () => {
+            const mockSchedules = [
+                { guild: '123', action: 'sendDailyText', time: '07' },
+                { guild: '123', action: 'sendRandomTopic', time: '19' }
+            ];
+            mockRepository.findByGuild.mockResolvedValue(mockSchedules);
+
+            const result = await scheduleService.getByGuild('123');
+
+            expect(mockRepository.findByGuild).toHaveBeenCalledWith('123');
+            expect(result).toEqual(mockSchedules);
+        });
+
+        it('should return empty array when no schedules', async () => {
+            mockRepository.findByGuild.mockResolvedValue([]);
+
+            const result = await scheduleService.getByGuild('999');
+
+            expect(result).toEqual([]);
+        });
     });
 });
+```
+
+### Step T.5: Integration Tests
+
+#### Guild Routes Integration Tests
+
+**File:** `tests/integration/routes/guild.routes.test.js`
+
+```javascript
+const request = require('supertest');
+const { createApp } = require('../../../src/startup');
+const { generateTestToken, generateAdminToken } = require('../../utils/test-helpers');
+const Guild = require('../../../src/models/guild.model');
+
+describe('Guild Routes', () => {
+    let app;
+    let validToken;
+    let adminToken;
+
+    beforeAll(async () => {
+        app = await createApp();
+        validToken = generateTestToken();
+        adminToken = generateAdminToken();
+    });
+
+    describe('GET /api/v1/guilds/:id/config', () => {
+        beforeEach(async () => {
+            await Guild.create({
+                id: '123456789',
+                name: 'Test Guild',
+                language: 'es',
+                newsNotificationChannelId: '987654321'
+            });
+        });
+
+        it('should return guild config for authorized user', async () => {
+            const res = await request(app)
+                .get('/api/v1/guilds/123456789/config')
+                .set('Authorization', `Bearer ${validToken}`);
+
+            expect(res.status).toBe(200);
+            expect(res.body).toHaveProperty('id', '123456789');
+            expect(res.body).toHaveProperty('language', 'es');
+            expect(res.body).toHaveProperty('newsNotificationChannelId', '987654321');
+        });
+
+        it('should return 401 without token', async () => {
+            const res = await request(app)
+                .get('/api/v1/guilds/123456789/config');
+
+            expect(res.status).toBe(401);
+        });
+
+        it('should return 403 for unauthorized user', async () => {
+            // Token for user not in guild
+            const unauthorizedToken = generateTestToken({ id: 'other-user' });
+
+            const res = await request(app)
+                .get('/api/v1/guilds/999999999/config')
+                .set('Authorization', `Bearer ${unauthorizedToken}`);
+
+            expect(res.status).toBe(403);
+        });
+
+        it('should return default config for unconfigured guild', async () => {
+            const res = await request(app)
+                .get('/api/v1/guilds/unconfigured-guild/config')
+                .set('Authorization', `Bearer ${validToken}`);
+
+            expect(res.status).toBe(200);
+            expect(res.body.language).toBeNull();
+        });
+    });
+
+    describe('PUT /api/v1/guilds/:id/config', () => {
+        it('should update guild config for admin user', async () => {
+            const res = await request(app)
+                .put('/api/v1/guilds/123456789/config')
+                .set('Authorization', `Bearer ${adminToken}`)
+                .send({
+                    language: 'en',
+                    prefix: '!'
+                });
+
+            expect(res.status).toBe(200);
+            expect(res.body.language).toBe('en');
+            expect(res.body.prefix).toBe('!');
+        });
+
+        it('should reject invalid language', async () => {
+            const res = await request(app)
+                .put('/api/v1/guilds/123456789/config')
+                .set('Authorization', `Bearer ${adminToken}`)
+                .send({
+                    language: 'invalid'
+                });
+
+            expect(res.status).toBe(400);
+            expect(res.body.error).toContain('Invalid language');
+        });
+
+        it('should return 403 for non-admin user', async () => {
+            const res = await request(app)
+                .put('/api/v1/guilds/123456789/config')
+                .set('Authorization', `Bearer ${validToken}`)
+                .send({
+                    language: 'en'
+                });
+
+            expect(res.status).toBe(403);
+        });
+    });
+});
+```
+
+#### Schedule Routes Integration Tests
+
+**File:** `tests/integration/routes/schedule.routes.test.js`
+
+```javascript
+const request = require('supertest');
+const { createApp } = require('../../../src/startup');
+const { generateAdminToken } = require('../../utils/test-helpers');
+const Schedule = require('../../../src/models/schedule.model');
+
+describe('Schedule Routes', () => {
+    let app;
+    let adminToken;
+
+    beforeAll(async () => {
+        app = await createApp();
+        adminToken = generateAdminToken();
+    });
+
+    describe('GET /api/v1/schedules/guild/:guildId', () => {
+        beforeEach(async () => {
+            await Schedule.create([
+                { guild: '123', time: '07', channelId: 'ch-1', action: 'sendDailyText' },
+                { guild: '123', time: '19', channelId: 'ch-2', action: 'sendRandomTopic' }
+            ]);
+        });
+
+        it('should return all schedules for guild', async () => {
+            const res = await request(app)
+                .get('/api/v1/schedules/guild/123')
+                .set('Authorization', `Bearer ${adminToken}`);
+
+            expect(res.status).toBe(200);
+            expect(res.body).toHaveLength(2);
+            expect(res.body[0]).toHaveProperty('action', 'sendDailyText');
+        });
+    });
+
+    describe('POST /api/v1/schedules/guild/:guildId', () => {
+        it('should create a new schedule', async () => {
+            const res = await request(app)
+                .post('/api/v1/schedules/guild/456')
+                .set('Authorization', `Bearer ${adminToken}`)
+                .send({
+                    time: '08',
+                    channelId: 'new-channel',
+                    action: 'sendDailyText'
+                });
+
+            expect(res.status).toBe(201);
+            expect(res.body).toHaveProperty('guild', '456');
+            expect(res.body).toHaveProperty('action', 'sendDailyText');
+        });
+
+        it('should reject invalid action', async () => {
+            const res = await request(app)
+                .post('/api/v1/schedules/guild/456')
+                .set('Authorization', `Bearer ${adminToken}`)
+                .send({
+                    time: '08',
+                    channelId: 'channel',
+                    action: 'invalidAction'
+                });
+
+            expect(res.status).toBe(400);
+            expect(res.body.error).toContain('Invalid action');
+        });
+
+        it('should reject invalid time', async () => {
+            const res = await request(app)
+                .post('/api/v1/schedules/guild/456')
+                .set('Authorization', `Bearer ${adminToken}`)
+                .send({
+                    time: '25', // Invalid hour
+                    channelId: 'channel',
+                    action: 'sendDailyText'
+                });
+
+            expect(res.status).toBe(400);
+            expect(res.body.error).toContain('Invalid time');
+        });
+    });
+
+    describe('PUT /api/v1/schedules/:scheduleId', () => {
+        let scheduleId;
+
+        beforeEach(async () => {
+            const schedule = await Schedule.create({
+                guild: '123',
+                time: '07',
+                channelId: 'ch-1',
+                action: 'sendDailyText'
+            });
+            scheduleId = schedule._id;
+        });
+
+        it('should update existing schedule', async () => {
+            const res = await request(app)
+                .put(`/api/v1/schedules/${scheduleId}`)
+                .set('Authorization', `Bearer ${adminToken}`)
+                .send({
+                    time: '09',
+                    action: 'sendRandomTopic'
+                });
+
+            expect(res.status).toBe(200);
+            expect(res.body.time).toBe('09');
+            expect(res.body.action).toBe('sendRandomTopic');
+        });
+
+        it('should return 404 for non-existent schedule', async () => {
+            const res = await request(app)
+                .put('/api/v1/schedules/000000000000000000000000')
+                .set('Authorization', `Bearer ${adminToken}`)
+                .send({ time: '09' });
+
+            expect(res.status).toBe(404);
+        });
+    });
+
+    describe('DELETE /api/v1/schedules/:scheduleId', () => {
+        let scheduleId;
+
+        beforeEach(async () => {
+            const schedule = await Schedule.create({
+                guild: '123',
+                time: '07',
+                channelId: 'ch-1',
+                action: 'sendDailyText'
+            });
+            scheduleId = schedule._id;
+        });
+
+        it('should delete schedule', async () => {
+            const res = await request(app)
+                .delete(`/api/v1/schedules/${scheduleId}`)
+                .set('Authorization', `Bearer ${adminToken}`);
+
+            expect(res.status).toBe(204);
+
+            // Verify deletion
+            const deleted = await Schedule.findById(scheduleId);
+            expect(deleted).toBeNull();
+        });
+    });
+});
+```
+
+### Step T.6: Test Scripts
+
+**File:** `package.json` (test scripts)
+
+```json
+{
+    "scripts": {
+        "test": "jest",
+        "test:watch": "jest --watch",
+        "test:coverage": "jest --coverage",
+        "test:unit": "jest tests/unit",
+        "test:integration": "jest tests/integration",
+        "test:ci": "jest --ci --coverage --reporters=default --reporters=jest-junit"
+    },
+    "devDependencies": {
+        "jest": "^29.7.0",
+        "supertest": "^6.3.3",
+        "mongodb-memory-server": "^9.1.6",
+        "jest-junit": "^16.0.0"
+    }
+}
+```
+
+### Test File Structure
+
+```
+tests/
+├── setup.js                              # Global test setup
+├── utils/
+│   └── test-helpers.js                   # Test utilities
+├── unit/
+│   ├── services/
+│   │   ├── guild.service.test.js
+│   │   ├── schedule.service.test.js
+│   │   ├── text.service.test.js
+│   │   ├── news.service.test.js
+│   │   └── topic.service.test.js
+│   ├── repositories/
+│   │   ├── guild.repository.test.js
+│   │   └── schedule.repository.test.js
+│   └── middlewares/
+│       └── auth.middleware.test.js
+└── integration/
+    └── routes/
+        ├── guild.routes.test.js
+        ├── schedule.routes.test.js
+        ├── text.routes.test.js
+        ├── news.routes.test.js
+        └── topic.routes.test.js
 ```
 
 ---

@@ -606,7 +606,204 @@ channel.send({ embeds: [dailyTextEmbed] });
 
 ### jw.helper.js
 
-If this file creates embeds, apply the same changes.
+This helper creates embeds for daily texts and topics. Complete migration required:
+
+**Current Code (v12):**
+```javascript
+const { MessageEmbed } = require('discord.js');
+const { Text, Topic } = require('../models');
+const Sentry = require('../../sentry');
+const { getLanguage, getWolSearchUrl, EMBED_COLORS, DEFAULT_LANG } = require('../config/languages');
+
+const chunkString = (str, len) => {
+    const size = Math.ceil(str.length / len);
+    const result = Array(size);
+    let offset = 0;
+
+    for (let i = 0; i < size; i++) {
+        result[i] = str.substring(offset, offset + len);
+        offset += len;
+    }
+
+    return result;
+};
+
+module.exports = {
+    async getDailyText(dateString, langCode = DEFAULT_LANG) {
+        const lang = getLanguage(langCode);
+        const text = await Text.findOne({ date: dateString });
+
+        if (!text) {
+            console.log(`[${langCode}] ${lang.strings.couldNotGetText}`);
+            return;
+        }
+
+        const embeds = [];
+        const chunks = chunkString(`${text.explanation}`, 1024);
+
+        chunks.forEach(chunk => {
+            const dailyText = new MessageEmbed()
+                .setColor(EMBED_COLORS.PRIMARY)
+                .setTitle(lang.strings.dailyText)
+                .addField(`${text.textContent} ${text.text}`, `${chunk}`);
+
+            embeds.push(dailyText);
+        });
+
+        return embeds;
+    },
+
+    async getRandomTopic() {
+        const topicCount = await Topic.countDocuments();
+        const random = Math.floor(Math.random() * topicCount);
+        const topic = await Topic.findOne().skip(random);
+
+        return topic;
+    },
+
+    async sendRandomTopic(channel, langCode = DEFAULT_LANG) {
+        try {
+            const lang = getLanguage(langCode);
+            const topic = await this.getRandomTopic();
+
+            if (!topic) {
+                console.log(`[${langCode}] No topics found`);
+                return;
+            }
+
+            const topicEmbed = new MessageEmbed()
+                .setColor(EMBED_COLORS.PRIMARY)
+                .setTitle(topic.name)
+                .addFields(
+                    { name: lang.strings.consider, value: topic.discussion },
+                    { name: lang.strings.search, value: getWolSearchUrl(topic.query, langCode) }
+                );
+
+            return channel.send(topicEmbed);
+        } catch (err) {
+            console.error('Error sending random topic:', err);
+            Sentry.captureException(err);
+        }
+    }
+};
+```
+
+**Updated Code (v14):**
+```javascript
+const { EmbedBuilder } = require('discord.js');
+const { Text, Topic } = require('../models');
+const Sentry = require('../../sentry');
+const { getLanguage, getWolSearchUrl, EMBED_COLORS, DEFAULT_LANG } = require('../config/languages');
+
+/**
+ * Split a string into chunks of specified length
+ * @param {string} str - String to split
+ * @param {number} len - Maximum length of each chunk
+ * @returns {Array<string>} Array of string chunks
+ */
+const chunkString = (str, len) => {
+    const size = Math.ceil(str.length / len);
+    const result = Array(size);
+    let offset = 0;
+
+    for (let i = 0; i < size; i++) {
+        result[i] = str.substring(offset, offset + len);
+        offset += len;
+    }
+
+    return result;
+};
+
+module.exports = {
+    /**
+     * Get daily text embeds for a specific date
+     * @param {string} dateString - Date in YYYY-MM-DD format
+     * @param {string} langCode - Language code (default: DEFAULT_LANG)
+     * @returns {Array<EmbedBuilder>|undefined} Array of embeds or undefined if not found
+     */
+    async getDailyText(dateString, langCode = DEFAULT_LANG) {
+        const lang = getLanguage(langCode);
+        const text = await Text.findOne({ date: dateString });
+
+        if (!text) {
+            console.log(`[${langCode}] ${lang.strings.couldNotGetText}`);
+            return;
+        }
+
+        const embeds = [];
+        const chunks = chunkString(`${text.explanation}`, 1024);
+
+        chunks.forEach(chunk => {
+            // EmbedBuilder replaces MessageEmbed
+            // addField() is replaced with addFields([])
+            const dailyText = new EmbedBuilder()
+                .setColor(EMBED_COLORS.PRIMARY)
+                .setTitle(lang.strings.dailyText)
+                .addFields([
+                    { name: `${text.textContent} ${text.text}`, value: `${chunk}` }
+                ]);
+
+            embeds.push(dailyText);
+        });
+
+        return embeds;
+    },
+
+    /**
+     * Get a random topic from the database
+     * @returns {Object} Topic document
+     */
+    async getRandomTopic() {
+        const topicCount = await Topic.countDocuments();
+        const random = Math.floor(Math.random() * topicCount);
+        const topic = await Topic.findOne().skip(random);
+
+        return topic;
+    },
+
+    /**
+     * Send a random topic to a channel
+     * @param {Channel} channel - Discord channel to send to
+     * @param {string} langCode - Language code (default: DEFAULT_LANG)
+     */
+    async sendRandomTopic(channel, langCode = DEFAULT_LANG) {
+        try {
+            const lang = getLanguage(langCode);
+            const topic = await this.getRandomTopic();
+
+            if (!topic) {
+                console.log(`[${langCode}] No topics found`);
+                return;
+            }
+
+            // EmbedBuilder replaces MessageEmbed
+            const topicEmbed = new EmbedBuilder()
+                .setColor(EMBED_COLORS.PRIMARY)
+                .setTitle(topic.name)
+                .addFields([
+                    { name: lang.strings.consider, value: topic.discussion },
+                    { name: lang.strings.search, value: getWolSearchUrl(topic.query, langCode) }
+                ]);
+
+            // send(embed) becomes send({ embeds: [embed] })
+            return channel.send({ embeds: [topicEmbed] });
+        } catch (err) {
+            console.error('Error sending random topic:', err);
+            Sentry.captureException(err);
+        }
+    }
+};
+```
+
+**Key Changes Summary:**
+
+| Line | Change | Description |
+|------|--------|-------------|
+| 1 | `MessageEmbed` → `EmbedBuilder` | Import rename |
+| 35-38 | `.addField(name, value)` → `.addFields([{ name, value }])` | Method signature change in getDailyText |
+| 63 | `new MessageEmbed()` → `new EmbedBuilder()` | Constructor change in sendRandomTopic |
+| 64-67 | `.addFields(...)` → `.addFields([...])` | Wrap in array (already correct syntax, just ensure array) |
+| 70 | `channel.send(embed)` → `channel.send({ embeds: [embed] })` | Send method signature |
 
 ---
 
@@ -722,6 +919,245 @@ git push origin main
 2. Test commands in production server
 3. Check Sentry for new errors
 4. Monitor scheduled tasks
+
+### Platform-Specific Deployment Examples
+
+#### Railway Deployment
+
+Create `railway.json` in project root:
+
+```json
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "NIXPACKS",
+    "buildCommand": "npm ci --production"
+  },
+  "deploy": {
+    "startCommand": "npm start",
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10,
+    "healthcheckPath": null,
+    "healthcheckTimeout": 300
+  }
+}
+```
+
+Environment variables in Railway dashboard:
+```
+DISCORD_TOKEN=your_bot_token
+DISCORD_BOT_ID=your_bot_id
+MONGO_DSN=mongodb+srv://...
+PREFIX=jw!
+DEFAULT_LANG=es
+SCHEDULER_TIMEZONE=America/Bogota
+SENTRY_DSN=https://...@sentry.io/...
+```
+
+Deploy commands:
+```bash
+# Install Railway CLI
+npm install -g @railway/cli
+
+# Login to Railway
+railway login
+
+# Link to project
+railway link
+
+# Deploy
+railway up
+```
+
+#### Docker/VPS Deployment
+
+**Dockerfile:**
+```dockerfile
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install production dependencies only
+RUN npm ci --production
+
+# Copy source code
+COPY . .
+
+# Set environment
+ENV NODE_ENV=production
+
+# Start the bot
+CMD ["npm", "start"]
+```
+
+**docker-compose.yml:**
+```yaml
+version: '3.8'
+
+services:
+  bot:
+    build: .
+    restart: unless-stopped
+    environment:
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - DISCORD_BOT_ID=${DISCORD_BOT_ID}
+      - MONGO_DSN=${MONGO_DSN}
+      - PREFIX=${PREFIX:-jw!}
+      - DEFAULT_LANG=${DEFAULT_LANG:-es}
+      - SCHEDULER_TIMEZONE=${SCHEDULER_TIMEZONE:-America/Bogota}
+      - SENTRY_DSN=${SENTRY_DSN}
+    depends_on:
+      - mongo
+    networks:
+      - bot-network
+
+  mongo:
+    image: mongo:6
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - bot-network
+
+volumes:
+  mongo-data:
+
+networks:
+  bot-network:
+    driver: bridge
+```
+
+Deploy commands:
+```bash
+# Build and start
+docker-compose up -d --build
+
+# View logs
+docker-compose logs -f bot
+
+# Restart after code changes
+docker-compose restart bot
+
+# Stop
+docker-compose down
+```
+
+**Systemd Service (for bare-metal VPS):**
+
+Create `/etc/systemd/system/jw-discord-bot.service`:
+```ini
+[Unit]
+Description=JW Discord Bot
+After=network.target mongodb.service
+
+[Service]
+Type=simple
+User=botuser
+Group=botuser
+WorkingDirectory=/opt/jw-discord-bot
+ExecStart=/usr/bin/node /opt/jw-discord-bot/src/app.js
+Restart=always
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=jw-discord-bot
+
+# Environment file
+EnvironmentFile=/opt/jw-discord-bot/.env
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Systemd commands:
+```bash
+# Reload systemd configuration
+sudo systemctl daemon-reload
+
+# Enable on boot
+sudo systemctl enable jw-discord-bot
+
+# Start the service
+sudo systemctl start jw-discord-bot
+
+# Check status
+sudo systemctl status jw-discord-bot
+
+# View logs
+sudo journalctl -u jw-discord-bot -f
+
+# Restart after update
+sudo systemctl restart jw-discord-bot
+```
+
+#### PM2 Deployment (Node.js Process Manager)
+
+Create `ecosystem.config.js`:
+```javascript
+module.exports = {
+  apps: [{
+    name: 'jw-discord-bot',
+    script: 'src/app.js',
+    instances: 1,
+    autorestart: true,
+    watch: false,
+    max_memory_restart: '500M',
+    env: {
+      NODE_ENV: 'development'
+    },
+    env_production: {
+      NODE_ENV: 'production'
+    },
+    error_file: './logs/err.log',
+    out_file: './logs/out.log',
+    log_file: './logs/combined.log',
+    time: true
+  }]
+};
+```
+
+PM2 commands:
+```bash
+# Install PM2 globally
+npm install -g pm2
+
+# Start in production mode
+pm2 start ecosystem.config.js --env production
+
+# Save process list for auto-restart on reboot
+pm2 save
+pm2 startup
+
+# View logs
+pm2 logs jw-discord-bot
+
+# Restart after code changes
+pm2 restart jw-discord-bot
+
+# Monitor resources
+pm2 monit
+
+# Stop
+pm2 stop jw-discord-bot
+```
+
+#### Vercel (Not Recommended)
+
+**Note:** Vercel is designed for serverless functions and is NOT recommended for Discord bots because:
+- Discord bots require persistent WebSocket connections
+- Serverless functions have execution time limits (10-60 seconds)
+- Scheduled tasks won't work reliably
+
+If you must use Vercel, consider using it only for the web dashboard (jw-discord-frontend) and deploy the bot on Railway or a VPS.
 
 ---
 

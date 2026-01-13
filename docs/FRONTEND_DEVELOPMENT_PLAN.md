@@ -1169,40 +1169,909 @@ export default {
 
 **Priority:** MEDIUM
 **Estimated Time:** 4-6 hours
+**Dependencies:** API Phase 5 (Content Endpoints)
 
-### Daily Text Viewer
+### Step 4.1: Add Content Routes
 
+**File:** `src/router.js` (additions)
+
+```javascript
+{
+  path: '/texts',
+  name: 'texts',
+  component: () => import('@/view/pages/content/DailyTexts.vue'),
+  meta: { requiresAuth: true }
+},
+{
+  path: '/texts/:date',
+  name: 'text-detail',
+  component: () => import('@/view/pages/content/DailyTextDetail.vue'),
+  meta: { requiresAuth: true }
+},
+{
+  path: '/news',
+  name: 'news',
+  component: () => import('@/view/pages/content/NewsList.vue'),
+  meta: { requiresAuth: true }
+},
+{
+  path: '/topics',
+  name: 'topics',
+  component: () => import('@/view/pages/content/TopicManagement.vue'),
+  meta: { requiresAuth: true, requiresAdmin: true }
+}
 ```
-/texts                    # Calendar view of daily texts
-/texts/:date              # View specific date
 
-Features:
-- Calendar date picker
-- Display scripture and commentary
-- Language filter
-- Share button
+### Step 4.2: Create Content Vuex Module
+
+**File:** `src/core/services/store/content.module.js` (NEW)
+
+```javascript
+import JwtService from '@/core/services/jwt.service';
+
+const API_URL = process.env.VUE_APP_JW_DISCORD_API;
+
+// Action types
+export const GET_TEXTS = 'getTexts';
+export const GET_TEXT_BY_DATE = 'getTextByDate';
+export const GET_NEWS = 'getNews';
+export const GET_LATEST_NEWS = 'getLatestNews';
+export const GET_TOPICS = 'getTopics';
+export const GET_RANDOM_TOPIC = 'getRandomTopic';
+export const CREATE_TOPIC = 'createTopic';
+export const UPDATE_TOPIC = 'updateTopic';
+export const DELETE_TOPIC = 'deleteTopic';
+
+// Mutation types
+export const SET_TEXTS = 'setTexts';
+export const SET_CURRENT_TEXT = 'setCurrentText';
+export const SET_NEWS = 'setNews';
+export const SET_TOPICS = 'setTopics';
+export const ADD_TOPIC = 'addTopic';
+export const MODIFY_TOPIC = 'modifyTopic';
+export const REMOVE_TOPIC = 'removeTopic';
+export const SET_PAGINATION = 'setPagination';
+
+const state = {
+  texts: [],
+  currentText: null,
+  news: [],
+  topics: [],
+  pagination: {
+    page: 1,
+    limit: 20,
+    total: 0,
+    pages: 0
+  }
+};
+
+const getters = {
+  texts: state => state.texts,
+  currentText: state => state.currentText,
+  news: state => state.news,
+  topics: state => state.topics,
+  pagination: state => state.pagination
+};
+
+const actions = {
+  async [GET_TEXTS](context, { page = 1, limit = 20 } = {}) {
+    const response = await fetch(
+      `${API_URL}/api/v1/texts?page=${page}&limit=${limit}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${JwtService.getToken()}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    if (response.ok) {
+      const result = await response.json();
+      context.commit(SET_TEXTS, result.data);
+      context.commit(SET_PAGINATION, result.pagination);
+      return result;
+    }
+    throw new Error('Failed to fetch texts');
+  },
+
+  async [GET_TEXT_BY_DATE](context, date) {
+    const response = await fetch(`${API_URL}/api/v1/texts/${date}`, {
+      headers: {
+        'Authorization': `Bearer ${JwtService.getToken()}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.ok) {
+      const text = await response.json();
+      context.commit(SET_CURRENT_TEXT, text);
+      return text;
+    }
+    if (response.status === 404) {
+      return null;
+    }
+    throw new Error('Failed to fetch text');
+  },
+
+  async [GET_NEWS](context, { page = 1, limit = 20, language = 'es' } = {}) {
+    const response = await fetch(
+      `${API_URL}/api/v1/news?page=${page}&limit=${limit}&language=${language}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${JwtService.getToken()}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    if (response.ok) {
+      const result = await response.json();
+      context.commit(SET_NEWS, result.data);
+      context.commit(SET_PAGINATION, result.pagination);
+      return result;
+    }
+    throw new Error('Failed to fetch news');
+  },
+
+  async [GET_TOPICS](context, { page = 1, limit = 20 } = {}) {
+    const response = await fetch(
+      `${API_URL}/api/v1/topics?page=${page}&limit=${limit}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${JwtService.getToken()}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    if (response.ok) {
+      const result = await response.json();
+      context.commit(SET_TOPICS, result.data);
+      context.commit(SET_PAGINATION, result.pagination);
+      return result;
+    }
+    throw new Error('Failed to fetch topics');
+  },
+
+  async [CREATE_TOPIC](context, topic) {
+    const response = await fetch(`${API_URL}/api/v1/topics`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${JwtService.getToken()}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(topic)
+    });
+
+    if (response.ok) {
+      const created = await response.json();
+      context.commit(ADD_TOPIC, created);
+      return created;
+    }
+    throw new Error('Failed to create topic');
+  },
+
+  async [UPDATE_TOPIC](context, { id, topic }) {
+    const response = await fetch(`${API_URL}/api/v1/topics/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${JwtService.getToken()}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(topic)
+    });
+
+    if (response.ok) {
+      const updated = await response.json();
+      context.commit(MODIFY_TOPIC, updated);
+      return updated;
+    }
+    throw new Error('Failed to update topic');
+  },
+
+  async [DELETE_TOPIC](context, id) {
+    const response = await fetch(`${API_URL}/api/v1/topics/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${JwtService.getToken()}`
+      }
+    });
+
+    if (response.ok) {
+      context.commit(REMOVE_TOPIC, id);
+      return true;
+    }
+    throw new Error('Failed to delete topic');
+  }
+};
+
+const mutations = {
+  [SET_TEXTS](state, texts) {
+    state.texts = texts;
+  },
+  [SET_CURRENT_TEXT](state, text) {
+    state.currentText = text;
+  },
+  [SET_NEWS](state, news) {
+    state.news = news;
+  },
+  [SET_TOPICS](state, topics) {
+    state.topics = topics;
+  },
+  [ADD_TOPIC](state, topic) {
+    state.topics.unshift(topic);
+  },
+  [MODIFY_TOPIC](state, topic) {
+    const index = state.topics.findIndex(t => t._id === topic._id);
+    if (index !== -1) {
+      state.topics.splice(index, 1, topic);
+    }
+  },
+  [REMOVE_TOPIC](state, id) {
+    state.topics = state.topics.filter(t => t._id !== id);
+  },
+  [SET_PAGINATION](state, pagination) {
+    state.pagination = pagination;
+  }
+};
+
+export default {
+  state,
+  actions,
+  mutations,
+  getters
+};
 ```
 
-### News Viewer
+### Step 4.3: Daily Texts Calendar Page
 
+**File:** `src/view/pages/content/DailyTexts.vue`
+
+```vue
+<template>
+  <div>
+    <h1 class="mb-4">Daily Texts</h1>
+
+    <!-- Date Picker -->
+    <v-row>
+      <v-col cols="12" md="4">
+        <v-date-picker
+          v-model="selectedDate"
+          full-width
+          color="primary"
+          @input="loadTextForDate"
+        />
+      </v-col>
+
+      <v-col cols="12" md="8">
+        <LoadingSpinner v-if="loading" height="300px" />
+
+        <EmptyState
+          v-else-if="!currentText"
+          icon="mdi-book-open-page-variant"
+          title="No text available"
+          description="Select a date from the calendar to view the daily text."
+        />
+
+        <v-card v-else>
+          <v-card-title class="primary white--text">
+            {{ formatDate(selectedDate) }}
+          </v-card-title>
+          <v-card-subtitle class="primary white--text pb-2">
+            {{ currentText.text }}
+          </v-card-subtitle>
+          <v-card-text class="pt-4">
+            <blockquote class="text-h6 font-italic mb-4">
+              "{{ currentText.textContent }}"
+            </blockquote>
+            <v-divider class="my-4" />
+            <div class="explanation" v-html="formatExplanation(currentText.explanation)" />
+          </v-card-text>
+          <v-card-actions>
+            <v-btn
+              text
+              color="primary"
+              @click="shareText"
+            >
+              <v-icon left>mdi-share</v-icon>
+              Share
+            </v-btn>
+            <v-spacer />
+            <v-btn
+              text
+              :disabled="!hasPreviousDay"
+              @click="previousDay"
+            >
+              <v-icon left>mdi-chevron-left</v-icon>
+              Previous
+            </v-btn>
+            <v-btn
+              text
+              :disabled="!hasNextDay"
+              @click="nextDay"
+            >
+              Next
+              <v-icon right>mdi-chevron-right</v-icon>
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-col>
+    </v-row>
+
+    <!-- Share Snackbar -->
+    <v-snackbar v-model="showCopied" color="success" timeout="2000">
+      Link copied to clipboard!
+    </v-snackbar>
+  </div>
+</template>
+
+<script>
+import { mapGetters } from 'vuex';
+import { GET_TEXT_BY_DATE } from '@/core/services/store/content.module';
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
+import EmptyState from '@/components/common/EmptyState.vue';
+
+export default {
+  name: 'DailyTexts',
+  components: { LoadingSpinner, EmptyState },
+  data() {
+    return {
+      selectedDate: new Date().toISOString().substr(0, 10),
+      loading: false,
+      showCopied: false
+    };
+  },
+  computed: {
+    ...mapGetters(['currentText']),
+    hasPreviousDay() {
+      return true; // Can always go back
+    },
+    hasNextDay() {
+      const today = new Date().toISOString().substr(0, 10);
+      return this.selectedDate < today;
+    }
+  },
+  mounted() {
+    this.loadTextForDate();
+  },
+  methods: {
+    async loadTextForDate() {
+      this.loading = true;
+      try {
+        await this.$store.dispatch(GET_TEXT_BY_DATE, this.selectedDate);
+      } catch (err) {
+        // Text not found is ok
+      } finally {
+        this.loading = false;
+      }
+    },
+    formatDate(dateStr) {
+      const date = new Date(dateStr + 'T12:00:00');
+      return date.toLocaleDateString('es-ES', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    },
+    formatExplanation(text) {
+      // Convert line breaks to paragraphs
+      return text.split('\n\n').map(p => `<p>${p}</p>`).join('');
+    },
+    previousDay() {
+      const date = new Date(this.selectedDate);
+      date.setDate(date.getDate() - 1);
+      this.selectedDate = date.toISOString().substr(0, 10);
+      this.loadTextForDate();
+    },
+    nextDay() {
+      const date = new Date(this.selectedDate);
+      date.setDate(date.getDate() + 1);
+      this.selectedDate = date.toISOString().substr(0, 10);
+      this.loadTextForDate();
+    },
+    shareText() {
+      const url = `${window.location.origin}/texts/${this.selectedDate}`;
+      navigator.clipboard.writeText(url);
+      this.showCopied = true;
+    }
+  }
+};
+</script>
+
+<style scoped>
+.explanation {
+  line-height: 1.8;
+}
+blockquote {
+  border-left: 4px solid var(--v-primary-base);
+  padding-left: 16px;
+  margin-left: 0;
+}
+</style>
 ```
-/news                     # List of news articles
 
-Features:
-- Paginated list
-- Language filter
-- Click to open on JW.org
+### Step 4.4: Daily Text Detail Page
+
+**File:** `src/view/pages/content/DailyTextDetail.vue`
+
+```vue
+<template>
+  <div>
+    <v-btn text :to="{ name: 'texts' }" class="mb-4">
+      <v-icon left>mdi-arrow-left</v-icon>
+      Back to Calendar
+    </v-btn>
+
+    <LoadingSpinner v-if="loading" />
+
+    <EmptyState
+      v-else-if="!currentText"
+      icon="mdi-calendar-remove"
+      title="Text not found"
+      description="No daily text available for this date."
+      action-text="Go to Calendar"
+      @action="$router.push({ name: 'texts' })"
+    />
+
+    <v-card v-else>
+      <v-card-title class="primary white--text">
+        {{ formatDate(date) }}
+      </v-card-title>
+      <v-card-subtitle class="primary white--text pb-2">
+        {{ currentText.text }}
+      </v-card-subtitle>
+      <v-card-text class="pt-4">
+        <blockquote class="text-h6 font-italic mb-4">
+          "{{ currentText.textContent }}"
+        </blockquote>
+        <v-divider class="my-4" />
+        <div class="explanation" v-html="formatExplanation(currentText.explanation)" />
+      </v-card-text>
+    </v-card>
+  </div>
+</template>
+
+<script>
+import { mapGetters } from 'vuex';
+import { GET_TEXT_BY_DATE } from '@/core/services/store/content.module';
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
+import EmptyState from '@/components/common/EmptyState.vue';
+
+export default {
+  name: 'DailyTextDetail',
+  components: { LoadingSpinner, EmptyState },
+  data() {
+    return {
+      loading: true
+    };
+  },
+  computed: {
+    ...mapGetters(['currentText']),
+    date() {
+      return this.$route.params.date;
+    }
+  },
+  async mounted() {
+    try {
+      await this.$store.dispatch(GET_TEXT_BY_DATE, this.date);
+    } finally {
+      this.loading = false;
+    }
+  },
+  methods: {
+    formatDate(dateStr) {
+      const date = new Date(dateStr + 'T12:00:00');
+      return date.toLocaleDateString('es-ES', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    },
+    formatExplanation(text) {
+      return text.split('\n\n').map(p => `<p>${p}</p>`).join('');
+    }
+  }
+};
+</script>
 ```
 
-### Topic Management
+### Step 4.5: News List Page
 
+**File:** `src/view/pages/content/NewsList.vue`
+
+```vue
+<template>
+  <div>
+    <div class="d-flex justify-space-between align-center mb-4">
+      <h1>News</h1>
+      <v-select
+        v-model="language"
+        :items="languages"
+        label="Language"
+        dense
+        outlined
+        hide-details
+        style="max-width: 200px"
+        @change="loadNews"
+      />
+    </div>
+
+    <LoadingSpinner v-if="loading" />
+
+    <ErrorAlert v-else-if="error" :error="error" />
+
+    <EmptyState
+      v-else-if="news.length === 0"
+      icon="mdi-newspaper"
+      title="No news available"
+      description="No news articles found for the selected language."
+    />
+
+    <template v-else>
+      <v-card>
+        <v-list three-line>
+          <template v-for="(item, index) in news">
+            <v-list-item :key="item._id" :href="item.link" target="_blank">
+              <v-list-item-content>
+                <v-list-item-title>{{ item.title }}</v-list-item-title>
+                <v-list-item-subtitle>
+                  {{ formatDate(item.pubDate) }}
+                </v-list-item-subtitle>
+              </v-list-item-content>
+              <v-list-item-action>
+                <v-icon>mdi-open-in-new</v-icon>
+              </v-list-item-action>
+            </v-list-item>
+            <v-divider v-if="index < news.length - 1" :key="'d-' + item._id" />
+          </template>
+        </v-list>
+      </v-card>
+
+      <!-- Pagination -->
+      <div class="d-flex justify-center mt-4">
+        <v-pagination
+          v-model="page"
+          :length="pagination.pages"
+          :total-visible="7"
+          @input="loadNews"
+        />
+      </div>
+    </template>
+  </div>
+</template>
+
+<script>
+import { mapGetters } from 'vuex';
+import { GET_NEWS } from '@/core/services/store/content.module';
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
+import ErrorAlert from '@/components/common/ErrorAlert.vue';
+import EmptyState from '@/components/common/EmptyState.vue';
+
+export default {
+  name: 'NewsList',
+  components: { LoadingSpinner, ErrorAlert, EmptyState },
+  data() {
+    return {
+      loading: true,
+      error: null,
+      page: 1,
+      language: 'es',
+      languages: [
+        { text: 'Español', value: 'es' },
+        { text: 'English', value: 'en' },
+        { text: 'Português', value: 'pt' }
+      ]
+    };
+  },
+  computed: {
+    ...mapGetters(['news', 'pagination'])
+  },
+  mounted() {
+    this.loadNews();
+  },
+  methods: {
+    async loadNews() {
+      this.loading = true;
+      this.error = null;
+      try {
+        await this.$store.dispatch(GET_NEWS, {
+          page: this.page,
+          language: this.language
+        });
+      } catch (err) {
+        this.error = 'Failed to load news';
+      } finally {
+        this.loading = false;
+      }
+    },
+    formatDate(dateStr) {
+      if (!dateStr) return '';
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    }
+  }
+};
+</script>
 ```
-/topics                   # Admin: manage topics
 
-Features:
-- List with search
-- Create/Edit/Delete
-- Export to JSON
+### Step 4.6: Topic Management Page (Admin)
+
+**File:** `src/view/pages/content/TopicManagement.vue`
+
+```vue
+<template>
+  <div>
+    <div class="d-flex justify-space-between align-center mb-4">
+      <h1>Topic Management</h1>
+      <div>
+        <v-btn text class="mr-2" @click="exportTopics">
+          <v-icon left>mdi-download</v-icon>
+          Export JSON
+        </v-btn>
+        <v-btn color="primary" @click="openCreateDialog">
+          <v-icon left>mdi-plus</v-icon>
+          Add Topic
+        </v-btn>
+      </div>
+    </div>
+
+    <!-- Search -->
+    <v-text-field
+      v-model="search"
+      prepend-inner-icon="mdi-magnify"
+      label="Search topics..."
+      outlined
+      dense
+      clearable
+      class="mb-4"
+    />
+
+    <LoadingSpinner v-if="loading" />
+    <ErrorAlert v-else-if="error" :error="error" @dismiss="error = null" />
+
+    <EmptyState
+      v-else-if="filteredTopics.length === 0"
+      icon="mdi-comment-question"
+      title="No topics found"
+      :description="search ? 'No topics match your search.' : 'Create your first topic.'"
+      :action-text="!search ? 'Add Topic' : null"
+      @action="openCreateDialog"
+    />
+
+    <v-card v-else>
+      <v-data-table
+        :headers="headers"
+        :items="filteredTopics"
+        :items-per-page="10"
+        class="elevation-1"
+      >
+        <template #item.actions="{ item }">
+          <v-btn icon small @click="openEditDialog(item)">
+            <v-icon small>mdi-pencil</v-icon>
+          </v-btn>
+          <v-btn icon small color="error" @click="confirmDelete(item)">
+            <v-icon small>mdi-delete</v-icon>
+          </v-btn>
+        </template>
+      </v-data-table>
+    </v-card>
+
+    <!-- Create/Edit Dialog -->
+    <v-dialog v-model="showDialog" max-width="600" persistent>
+      <v-card>
+        <v-card-title>
+          {{ editingTopic ? 'Edit Topic' : 'Create Topic' }}
+        </v-card-title>
+        <v-card-text>
+          <v-form ref="form" v-model="formValid">
+            <v-text-field
+              v-model="form.name"
+              label="Topic Name"
+              :rules="[v => !!v || 'Name is required']"
+              outlined
+              class="mb-3"
+            />
+            <v-textarea
+              v-model="form.discussion"
+              label="Discussion Question"
+              :rules="[v => !!v || 'Discussion is required']"
+              outlined
+              rows="3"
+              class="mb-3"
+            />
+            <v-text-field
+              v-model="form.query"
+              label="WOL Search Query (optional)"
+              hint="Search term for Watchtower Online Library"
+              persistent-hint
+              outlined
+            />
+          </v-form>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn text @click="closeDialog">Cancel</v-btn>
+          <v-btn
+            color="primary"
+            :disabled="!formValid"
+            :loading="saving"
+            @click="saveTopic"
+          >
+            {{ editingTopic ? 'Save' : 'Create' }}
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Delete Confirmation -->
+    <v-dialog v-model="showDeleteDialog" max-width="400">
+      <v-card>
+        <v-card-title>Delete Topic?</v-card-title>
+        <v-card-text>
+          Are you sure you want to delete "{{ topicToDelete?.name }}"?
+          This action cannot be undone.
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn text @click="showDeleteDialog = false">Cancel</v-btn>
+          <v-btn color="error" :loading="deleting" @click="deleteTopic">
+            Delete
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Success Snackbar -->
+    <v-snackbar v-model="showSuccess" color="success" timeout="3000">
+      {{ successMessage }}
+    </v-snackbar>
+  </div>
+</template>
+
+<script>
+import { mapGetters } from 'vuex';
+import {
+  GET_TOPICS,
+  CREATE_TOPIC,
+  UPDATE_TOPIC,
+  DELETE_TOPIC
+} from '@/core/services/store/content.module';
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
+import ErrorAlert from '@/components/common/ErrorAlert.vue';
+import EmptyState from '@/components/common/EmptyState.vue';
+
+export default {
+  name: 'TopicManagement',
+  components: { LoadingSpinner, ErrorAlert, EmptyState },
+  data() {
+    return {
+      loading: true,
+      saving: false,
+      deleting: false,
+      error: null,
+      search: '',
+      showDialog: false,
+      showDeleteDialog: false,
+      showSuccess: false,
+      successMessage: '',
+      formValid: false,
+      editingTopic: null,
+      topicToDelete: null,
+      form: {
+        name: '',
+        discussion: '',
+        query: ''
+      },
+      headers: [
+        { text: 'Name', value: 'name', width: '25%' },
+        { text: 'Discussion', value: 'discussion' },
+        { text: 'Actions', value: 'actions', sortable: false, width: '100px' }
+      ]
+    };
+  },
+  computed: {
+    ...mapGetters(['topics']),
+    filteredTopics() {
+      if (!this.search) return this.topics;
+      const search = this.search.toLowerCase();
+      return this.topics.filter(t =>
+        t.name.toLowerCase().includes(search) ||
+        t.discussion.toLowerCase().includes(search)
+      );
+    }
+  },
+  mounted() {
+    this.loadTopics();
+  },
+  methods: {
+    async loadTopics() {
+      try {
+        await this.$store.dispatch(GET_TOPICS, { limit: 100 });
+      } catch (err) {
+        this.error = 'Failed to load topics';
+      } finally {
+        this.loading = false;
+      }
+    },
+    openCreateDialog() {
+      this.editingTopic = null;
+      this.form = { name: '', discussion: '', query: '' };
+      this.showDialog = true;
+    },
+    openEditDialog(topic) {
+      this.editingTopic = topic;
+      this.form = {
+        name: topic.name,
+        discussion: topic.discussion,
+        query: topic.query || ''
+      };
+      this.showDialog = true;
+    },
+    closeDialog() {
+      this.showDialog = false;
+      this.editingTopic = null;
+      this.$refs.form?.reset();
+    },
+    async saveTopic() {
+      if (!this.formValid) return;
+      this.saving = true;
+
+      try {
+        if (this.editingTopic) {
+          await this.$store.dispatch(UPDATE_TOPIC, {
+            id: this.editingTopic._id,
+            topic: this.form
+          });
+          this.successMessage = 'Topic updated successfully';
+        } else {
+          await this.$store.dispatch(CREATE_TOPIC, this.form);
+          this.successMessage = 'Topic created successfully';
+        }
+        this.showSuccess = true;
+        this.closeDialog();
+      } catch (err) {
+        this.error = 'Failed to save topic';
+      } finally {
+        this.saving = false;
+      }
+    },
+    confirmDelete(topic) {
+      this.topicToDelete = topic;
+      this.showDeleteDialog = true;
+    },
+    async deleteTopic() {
+      this.deleting = true;
+      try {
+        await this.$store.dispatch(DELETE_TOPIC, this.topicToDelete._id);
+        this.successMessage = 'Topic deleted successfully';
+        this.showSuccess = true;
+        this.showDeleteDialog = false;
+        this.topicToDelete = null;
+      } catch (err) {
+        this.error = 'Failed to delete topic';
+      } finally {
+        this.deleting = false;
+      }
+    },
+    exportTopics() {
+      const dataStr = JSON.stringify(this.topics, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'topics.json';
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+  }
+};
+</script>
 ```
 
 ---
@@ -1211,27 +2080,630 @@ Features:
 
 **Priority:** MEDIUM
 **Estimated Time:** 3-4 hours
+**Dependencies:** None (can start immediately)
 
-### Toast Notifications
+### Step 5.1: Global Toast Notification System
 
-Use Vuetify snackbars for feedback:
-- Success messages (green)
-- Error messages (red)
-- Info messages (blue)
+**File:** `src/plugins/toast.js` (NEW)
 
-### Confirmation Dialogs
+```javascript
+/**
+ * Global toast notification plugin
+ * Usage: this.$toast.success('Message'), this.$toast.error('Message')
+ */
+const ToastPlugin = {
+  install(Vue) {
+    // Create event bus for toasts
+    Vue.prototype.$toast = new Vue({
+      data: () => ({
+        snackbar: false,
+        message: '',
+        color: 'info',
+        timeout: 3000
+      }),
+      methods: {
+        show({ message, color = 'info', timeout = 3000 }) {
+          this.message = message;
+          this.color = color;
+          this.timeout = timeout;
+          this.snackbar = true;
+        },
+        success(message, timeout = 3000) {
+          this.show({ message, color: 'success', timeout });
+        },
+        error(message, timeout = 5000) {
+          this.show({ message, color: 'error', timeout });
+        },
+        info(message, timeout = 3000) {
+          this.show({ message, color: 'info', timeout });
+        },
+        warning(message, timeout = 4000) {
+          this.show({ message, color: 'warning', timeout });
+        }
+      }
+    });
+  }
+};
 
-For destructive actions:
-- Delete schedule
-- Delete topic
-- Reset settings
+export default ToastPlugin;
+```
 
-### Responsive Design
+**File:** `src/components/common/GlobalToast.vue`
 
-Ensure all pages work on:
-- Desktop (1200px+)
-- Tablet (768px - 1199px)
-- Mobile (< 768px)
+```vue
+<template>
+  <v-snackbar
+    v-model="$toast.snackbar"
+    :color="$toast.color"
+    :timeout="$toast.timeout"
+    top
+    right
+  >
+    {{ $toast.message }}
+    <template #action="{ attrs }">
+      <v-btn
+        text
+        v-bind="attrs"
+        @click="$toast.snackbar = false"
+      >
+        Close
+      </v-btn>
+    </template>
+  </v-snackbar>
+</template>
+
+<script>
+export default {
+  name: 'GlobalToast'
+};
+</script>
+```
+
+**File:** `src/main.js` (additions)
+
+```javascript
+import ToastPlugin from './plugins/toast';
+import GlobalToast from './components/common/GlobalToast.vue';
+
+Vue.use(ToastPlugin);
+
+// In App.vue template, add:
+// <GlobalToast />
+```
+
+### Step 5.2: Reusable Confirmation Dialog Component
+
+**File:** `src/components/common/ConfirmDialog.vue`
+
+```vue
+<template>
+  <v-dialog
+    v-model="dialog"
+    :max-width="maxWidth"
+    persistent
+  >
+    <v-card>
+      <v-card-title :class="titleClass">
+        <v-icon v-if="icon" left :color="iconColor">{{ icon }}</v-icon>
+        {{ title }}
+      </v-card-title>
+      <v-card-text class="pt-4">
+        <slot>{{ message }}</slot>
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer />
+        <v-btn
+          text
+          :disabled="loading"
+          @click="cancel"
+        >
+          {{ cancelText }}
+        </v-btn>
+        <v-btn
+          :color="confirmColor"
+          :loading="loading"
+          @click="confirm"
+        >
+          {{ confirmText }}
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+</template>
+
+<script>
+export default {
+  name: 'ConfirmDialog',
+  props: {
+    value: { type: Boolean, default: false },
+    title: { type: String, default: 'Confirm Action' },
+    message: { type: String, default: 'Are you sure you want to proceed?' },
+    confirmText: { type: String, default: 'Confirm' },
+    cancelText: { type: String, default: 'Cancel' },
+    confirmColor: { type: String, default: 'primary' },
+    icon: { type: String, default: null },
+    iconColor: { type: String, default: null },
+    maxWidth: { type: [String, Number], default: 400 },
+    loading: { type: Boolean, default: false }
+  },
+  computed: {
+    dialog: {
+      get() {
+        return this.value;
+      },
+      set(val) {
+        this.$emit('input', val);
+      }
+    },
+    titleClass() {
+      if (this.confirmColor === 'error') return 'red--text';
+      if (this.confirmColor === 'warning') return 'orange--text';
+      return '';
+    }
+  },
+  methods: {
+    confirm() {
+      this.$emit('confirm');
+    },
+    cancel() {
+      this.$emit('cancel');
+      this.dialog = false;
+    }
+  }
+};
+</script>
+```
+
+**Usage Example:**
+
+```vue
+<template>
+  <div>
+    <v-btn color="error" @click="showDeleteDialog = true">
+      Delete Item
+    </v-btn>
+
+    <ConfirmDialog
+      v-model="showDeleteDialog"
+      title="Delete Item?"
+      message="This action cannot be undone. Are you sure?"
+      confirm-text="Delete"
+      confirm-color="error"
+      icon="mdi-delete"
+      icon-color="error"
+      :loading="deleting"
+      @confirm="handleDelete"
+    />
+  </div>
+</template>
+
+<script>
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue';
+
+export default {
+  components: { ConfirmDialog },
+  data: () => ({
+    showDeleteDialog: false,
+    deleting: false
+  }),
+  methods: {
+    async handleDelete() {
+      this.deleting = true;
+      try {
+        await this.deleteItem();
+        this.showDeleteDialog = false;
+        this.$toast.success('Item deleted successfully');
+      } catch (err) {
+        this.$toast.error('Failed to delete item');
+      } finally {
+        this.deleting = false;
+      }
+    }
+  }
+};
+</script>
+```
+
+### Step 5.3: Responsive Layout Mixin
+
+**File:** `src/mixins/responsive.js`
+
+```javascript
+/**
+ * Responsive layout mixin
+ * Provides computed properties for screen size detection
+ */
+export default {
+  computed: {
+    isMobile() {
+      return this.$vuetify.breakpoint.smAndDown;
+    },
+    isTablet() {
+      return this.$vuetify.breakpoint.md;
+    },
+    isDesktop() {
+      return this.$vuetify.breakpoint.lgAndUp;
+    },
+    currentBreakpoint() {
+      return this.$vuetify.breakpoint.name;
+    },
+    // Dynamic column sizes
+    colSizes() {
+      return {
+        full: 12,
+        half: this.isMobile ? 12 : 6,
+        third: this.isMobile ? 12 : this.isTablet ? 6 : 4,
+        quarter: this.isMobile ? 12 : this.isTablet ? 6 : 3
+      };
+    }
+  }
+};
+```
+
+**Usage Example:**
+
+```vue
+<template>
+  <v-row>
+    <v-col :cols="colSizes.third" v-for="item in items" :key="item.id">
+      <ItemCard :item="item" />
+    </v-col>
+  </v-row>
+</template>
+
+<script>
+import responsiveMixin from '@/mixins/responsive';
+
+export default {
+  mixins: [responsiveMixin]
+};
+</script>
+```
+
+### Step 5.4: Loading State HOC (Higher Order Component)
+
+**File:** `src/components/common/WithLoading.vue`
+
+```vue
+<template>
+  <div class="with-loading">
+    <!-- Loading Overlay -->
+    <v-overlay
+      v-if="loading && overlay"
+      :value="loading"
+      absolute
+      color="white"
+      opacity="0.8"
+    >
+      <v-progress-circular
+        indeterminate
+        color="primary"
+        :size="50"
+      />
+    </v-overlay>
+
+    <!-- Inline Loading -->
+    <div v-else-if="loading && !overlay" class="text-center py-8">
+      <v-progress-circular
+        indeterminate
+        color="primary"
+        :size="size"
+      />
+      <p v-if="loadingText" class="mt-4 grey--text">{{ loadingText }}</p>
+    </div>
+
+    <!-- Error State -->
+    <v-alert
+      v-else-if="error"
+      type="error"
+      dismissible
+      @input="$emit('dismiss-error')"
+    >
+      {{ error }}
+      <template #actions v-if="retryable">
+        <v-btn text small @click="$emit('retry')">
+          Retry
+        </v-btn>
+      </template>
+    </v-alert>
+
+    <!-- Content -->
+    <slot v-else />
+  </div>
+</template>
+
+<script>
+export default {
+  name: 'WithLoading',
+  props: {
+    loading: { type: Boolean, default: false },
+    error: { type: String, default: null },
+    loadingText: { type: String, default: null },
+    overlay: { type: Boolean, default: false },
+    size: { type: Number, default: 50 },
+    retryable: { type: Boolean, default: false }
+  }
+};
+</script>
+
+<style scoped>
+.with-loading {
+  position: relative;
+  min-height: 100px;
+}
+</style>
+```
+
+**Usage Example:**
+
+```vue
+<template>
+  <WithLoading
+    :loading="loading"
+    :error="error"
+    loading-text="Loading your data..."
+    retryable
+    @retry="loadData"
+    @dismiss-error="error = null"
+  >
+    <YourContent />
+  </WithLoading>
+</template>
+```
+
+### Step 5.5: Add UPDATE_SCHEDULE Action to Guild Module
+
+**File:** `src/core/services/store/guild.module.js` (additions)
+
+```javascript
+// Add to action types
+export const UPDATE_SCHEDULE = 'updateSchedule';
+
+// Add to mutation types
+export const MODIFY_SCHEDULE = 'modifySchedule';
+
+// Add to actions object
+async [UPDATE_SCHEDULE](context, { scheduleId, schedule }) {
+  const response = await fetch(`${API_URL}/api/v1/schedules/${scheduleId}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${JwtService.getToken()}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(schedule)
+  });
+
+  if (response.ok) {
+    const updated = await response.json();
+    context.commit(MODIFY_SCHEDULE, updated);
+    return updated;
+  }
+  throw new Error('Failed to update schedule');
+},
+
+// Add to mutations object
+[MODIFY_SCHEDULE](state, schedule) {
+  const index = state.guildSchedules.findIndex(s => s._id === schedule._id);
+  if (index !== -1) {
+    state.guildSchedules.splice(index, 1, schedule);
+  }
+}
+```
+
+### Step 5.6: Keyboard Navigation Mixin
+
+**File:** `src/mixins/keyboard-nav.js`
+
+```javascript
+/**
+ * Keyboard navigation mixin
+ * Adds keyboard shortcuts to components
+ */
+export default {
+  data: () => ({
+    keyboardShortcuts: []
+  }),
+  mounted() {
+    this.setupKeyboardNav();
+  },
+  beforeDestroy() {
+    this.cleanupKeyboardNav();
+  },
+  methods: {
+    setupKeyboardNav() {
+      this._keydownHandler = (e) => {
+        // Check if user is typing in an input
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+          return;
+        }
+
+        this.keyboardShortcuts.forEach(({ key, ctrl, shift, action }) => {
+          const ctrlMatch = ctrl ? (e.ctrlKey || e.metaKey) : true;
+          const shiftMatch = shift ? e.shiftKey : true;
+
+          if (e.key.toLowerCase() === key.toLowerCase() && ctrlMatch && shiftMatch) {
+            e.preventDefault();
+            action();
+          }
+        });
+      };
+
+      document.addEventListener('keydown', this._keydownHandler);
+    },
+    cleanupKeyboardNav() {
+      if (this._keydownHandler) {
+        document.removeEventListener('keydown', this._keydownHandler);
+      }
+    },
+    registerShortcut(key, action, { ctrl = false, shift = false } = {}) {
+      this.keyboardShortcuts.push({ key, ctrl, shift, action });
+    }
+  }
+};
+```
+
+**Usage Example:**
+
+```vue
+<script>
+import keyboardNavMixin from '@/mixins/keyboard-nav';
+
+export default {
+  mixins: [keyboardNavMixin],
+  mounted() {
+    // Register shortcuts
+    this.registerShortcut('n', this.openCreateDialog, { ctrl: true });
+    this.registerShortcut('s', this.saveChanges, { ctrl: true });
+    this.registerShortcut('Escape', this.closeDialog);
+  }
+};
+</script>
+```
+
+### Step 5.7: Form Validation Utilities
+
+**File:** `src/utils/validators.js`
+
+```javascript
+/**
+ * Common validation rules for Vuetify forms
+ */
+export const rules = {
+  required: v => !!v || 'This field is required',
+
+  email: v => !v || /.+@.+\..+/.test(v) || 'Invalid email address',
+
+  minLength: min => v => !v || v.length >= min || `Minimum ${min} characters`,
+
+  maxLength: max => v => !v || v.length <= max || `Maximum ${max} characters`,
+
+  numeric: v => !v || /^\d+$/.test(v) || 'Must be a number',
+
+  alphanumeric: v => !v || /^[a-zA-Z0-9]+$/.test(v) || 'Only letters and numbers',
+
+  url: v => !v || /^https?:\/\/.+/.test(v) || 'Invalid URL',
+
+  hour: v => {
+    const num = parseInt(v);
+    return (!isNaN(num) && num >= 0 && num <= 23) || 'Must be 0-23';
+  },
+
+  language: v => !v || ['es', 'en', 'pt'].includes(v) || 'Invalid language',
+
+  // Prefix validation (optional, max 10 chars, no spaces)
+  prefix: v => {
+    if (!v) return true;
+    if (v.length > 10) return 'Maximum 10 characters';
+    if (/\s/.test(v)) return 'No spaces allowed';
+    return true;
+  }
+};
+
+/**
+ * Combine multiple rules
+ */
+export function combine(...rules) {
+  return v => {
+    for (const rule of rules) {
+      const result = rule(v);
+      if (result !== true) return result;
+    }
+    return true;
+  };
+}
+```
+
+**Usage Example:**
+
+```vue
+<template>
+  <v-form v-model="formValid">
+    <v-text-field
+      v-model="form.name"
+      label="Name"
+      :rules="[rules.required, rules.maxLength(50)]"
+    />
+    <v-text-field
+      v-model="form.email"
+      label="Email"
+      :rules="[rules.required, rules.email]"
+    />
+    <v-text-field
+      v-model="form.prefix"
+      label="Prefix"
+      :rules="[rules.prefix]"
+    />
+  </v-form>
+</template>
+
+<script>
+import { rules } from '@/utils/validators';
+
+export default {
+  data: () => ({
+    rules,
+    formValid: false,
+    form: { name: '', email: '', prefix: '' }
+  })
+};
+</script>
+```
+
+### Step 5.8: Accessibility Improvements
+
+**File:** `src/directives/focus-trap.js`
+
+```javascript
+/**
+ * Focus trap directive for modals/dialogs
+ * Usage: v-focus-trap
+ */
+export default {
+  bind(el) {
+    const focusableElements = el.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+
+    if (focusableElements.length === 0) return;
+
+    const firstEl = focusableElements[0];
+    const lastEl = focusableElements[focusableElements.length - 1];
+
+    el._focusTrapHandler = (e) => {
+      if (e.key !== 'Tab') return;
+
+      if (e.shiftKey) {
+        if (document.activeElement === firstEl) {
+          e.preventDefault();
+          lastEl.focus();
+        }
+      } else {
+        if (document.activeElement === lastEl) {
+          e.preventDefault();
+          firstEl.focus();
+        }
+      }
+    };
+
+    el.addEventListener('keydown', el._focusTrapHandler);
+
+    // Focus first element
+    setTimeout(() => firstEl.focus(), 0);
+  },
+  unbind(el) {
+    if (el._focusTrapHandler) {
+      el.removeEventListener('keydown', el._focusTrapHandler);
+    }
+  }
+};
+```
+
+**Register directive in main.js:**
+
+```javascript
+import focusTrap from './directives/focus-trap';
+Vue.directive('focus-trap', focusTrap);
+```
 
 ---
 
