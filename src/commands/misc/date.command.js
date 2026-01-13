@@ -1,4 +1,4 @@
-const { MessageEmbed } = require('discord.js');
+const { EmbedBuilder } = require('discord.js');
 const { GuildHelper } = require('../../helpers');
 const { getLanguage, EMBED_COLORS } = require('../../config/languages');
 
@@ -23,7 +23,10 @@ module.exports.run = async (message, args) => {
     const timeZone = args.length ? args[0] : Intl.DateTimeFormat().resolvedOptions().timeZone;
 
     if (!isValidTimeZone(timeZone)) {
-        return message.channel.send(lang.strings.invalidTimezone).then(msg => msg.delete({ timeout: 3000 }));
+        // v14: message.delete() no longer accepts options object
+        const errorMsg = await message.channel.send(lang.strings.invalidTimezone);
+        setTimeout(() => errorMsg.delete().catch(() => {}), 3000);
+        return;
     }
 
     const dateStringFromTimeZone = new Date().toLocaleString('en-US', { timeZone: timeZone });
@@ -37,33 +40,20 @@ module.exports.run = async (message, args) => {
     const seconds = ('0' + date.getSeconds()).slice(-2);
     const time_hh_mm_ss = hours + ':' + minutes + ':' + seconds;
 
-    const dateEmbed = new MessageEmbed()
+    // v14: MessageEmbed -> EmbedBuilder
+    const dateEmbed = new EmbedBuilder()
         .setColor(EMBED_COLORS.PRIMARY)
         .setTitle(lang.strings.todayIs)
-        .addFields(
-            {
-                name: lang.strings.day,
-                value: day
-            },
-            {
-                name: lang.strings.month,
-                value: month
-            },
-            {
-                name: lang.strings.year,
-                value: year.toString()
-            },
-            {
-                name: lang.strings.time,
-                value: time_hh_mm_ss
-            },
-            {
-                name: lang.strings.timezone,
-                value: timeZone
-            }
-        );
+        .addFields([
+            { name: lang.strings.day, value: day },
+            { name: lang.strings.month, value: month },
+            { name: lang.strings.year, value: year.toString() },
+            { name: lang.strings.time, value: time_hh_mm_ss },
+            { name: lang.strings.timezone, value: timeZone }
+        ]);
 
-    return message.channel.send(dateEmbed);
+    // v14: send(embed) -> send({ embeds: [embed] })
+    return message.channel.send({ embeds: [dateEmbed] });
 };
 
 module.exports.config = {

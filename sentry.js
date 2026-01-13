@@ -1,17 +1,18 @@
-const Sentry = require("@sentry/node");
-// or use es6 import statements
-// import * as Sentry from '@sentry/node';
+const Sentry = require('@sentry/node');
 
-const Tracing = require("@sentry/tracing");
-// or use es6 import statements
-// import * as Tracing from '@sentry/tracing';
+// Sentry v7+ no longer requires @sentry/tracing as a separate import
+// Tracing is now built into @sentry/node
 
 Sentry.init({
-  dsn: process.env.SENTRY_DSN,
+    dsn: process.env.SENTRY_DSN,
 
-  // We recommend adjusting this value in production, or using tracesSampler
-  // for finer control
-  tracesSampleRate: 1.0,
+    // Set tracesSampleRate to 1.0 to capture 100%
+    // of transactions for performance monitoring.
+    // We recommend adjusting this value in production
+    tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+
+    // Setting this option to true will print useful information to the console while setting up Sentry
+    debug: false
 });
 
 module.exports = Sentry;

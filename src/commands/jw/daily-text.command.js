@@ -14,7 +14,10 @@ module.exports.run = async (message, args) => {
     const dailyTextEmbeds = await JwHelper.getDailyText(dateString, langCode);
 
     if (!dailyTextEmbeds) {
-        return message.channel.send(lang.strings.noTextForDate).then(msg => msg.delete({ timeout: 3000 }));
+        // v14: message.delete() no longer accepts options object
+        const errorMsg = await message.channel.send(lang.strings.noTextForDate);
+        setTimeout(() => errorMsg.delete().catch(() => {}), 3000);
+        return;
     }
 
     PaginationEmbed(message.channel, dailyTextEmbeds, ['⏪', '⏩'], 28800000);

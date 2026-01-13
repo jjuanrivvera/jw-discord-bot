@@ -2,9 +2,9 @@
  * Unit tests for jw.helper.js
  */
 
-// Mock Discord.js MessageEmbed
+// Mock Discord.js EmbedBuilder (v14)
 jest.mock('discord.js', () => ({
-    MessageEmbed: jest.fn().mockImplementation(() => ({
+    EmbedBuilder: jest.fn().mockImplementation(() => ({
         setColor: jest.fn().mockReturnThis(),
         setTitle: jest.fn().mockReturnThis(),
         addField: jest.fn().mockReturnThis(),
@@ -22,7 +22,7 @@ jest.mock('../../../src/models', () => require('../../mocks/models.mock'));
 
 const JwHelper = require('../../../src/helpers/jw.helper');
 const { Text, Topic, resetAllMocks } = require('../../mocks/models.mock');
-const { MessageEmbed } = require('discord.js');
+const { EmbedBuilder } = require('discord.js');
 
 describe('JW Helper', () => {
     beforeEach(() => {
@@ -53,7 +53,7 @@ describe('JW Helper', () => {
             expect(result).toBeDefined();
             expect(Array.isArray(result)).toBe(true);
             expect(result.length).toBeGreaterThan(0);
-            expect(MessageEmbed).toHaveBeenCalled();
+            expect(EmbedBuilder).toHaveBeenCalled();
         });
 
         it('should use default language when not specified', async () => {
@@ -150,7 +150,10 @@ describe('JW Helper', () => {
 
             await JwHelper.sendRandomTopic(mockChannel, 'es');
 
+            // v14: send is called with { embeds: [...] }
             expect(mockChannel.send).toHaveBeenCalled();
+            const callArg = mockChannel.send.mock.calls[0][0];
+            expect(callArg).toHaveProperty('embeds');
         });
 
         it('should not send when no topics found', async () => {

@@ -1,4 +1,4 @@
-const { MessageEmbed } = require('discord.js');
+const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { GuildHelper } = require('../../helpers');
 const { EMBED_COLORS, getLanguage, getAvailableLanguages } = require('../../config/languages');
 
@@ -7,10 +7,11 @@ module.exports.run = async (message, args) => {
     const guildLang = await GuildHelper.getGuildLanguage(message.guild.id);
     const lang = getLanguage(guildLang);
 
-    // Check admin permissions
-    if (!message.member.hasPermission('ADMINISTRATOR')) {
-        return message.channel.send(lang.strings.adminOnly)
-            .then(msg => msg.delete({ timeout: 3000 }));
+    // v14: hasPermission() -> permissions.has()
+    if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
+        const errorMsg = await message.channel.send(lang.strings.adminOnly);
+        setTimeout(() => errorMsg.delete().catch(() => {}), 3000);
+        return;
     }
 
     const availableLanguages = getAvailableLanguages();
@@ -20,16 +21,21 @@ module.exports.run = async (message, args) => {
     if (!args.length) {
         const currentLang = getLanguage(guildLang);
 
-        const embed = new MessageEmbed()
+        // v14: MessageEmbed -> EmbedBuilder
+        // v14: addField() -> addFields([])
+        const embed = new EmbedBuilder()
             .setColor(EMBED_COLORS.PRIMARY)
             .setTitle(lang.strings.currentConfig)
-            .addField(lang.strings.language || 'Language', `${currentLang.name} (${currentLang.code})`)
-            .addField(
-                lang.strings.availableLanguages || 'Available Languages',
-                availableLanguages.map(l => `\`${l.code}\` - ${l.name}`).join('\n')
-            );
+            .addFields([
+                { name: lang.strings.language || 'Language', value: `${currentLang.name} (${currentLang.code})` },
+                {
+                    name: lang.strings.availableLanguages || 'Available Languages',
+                    value: availableLanguages.map(l => `\`${l.code}\` - ${l.name}`).join('\n')
+                }
+            ]);
 
-        return message.channel.send(embed);
+        // v14: send(embed) -> send({ embeds: [embed] })
+        return message.channel.send({ embeds: [embed] });
     }
 
     const newLang = args[0].toLowerCase();
@@ -38,8 +44,9 @@ module.exports.run = async (message, args) => {
     if (!langCodes.includes(newLang)) {
         const errorMsg = (lang.strings.invalidLanguage || 'Invalid language. Available:') +
             ` ${langCodes.join(', ')}`;
-        return message.channel.send(errorMsg)
-            .then(msg => msg.delete({ timeout: 5000 }));
+        const sentMsg = await message.channel.send(errorMsg);
+        setTimeout(() => sentMsg.delete().catch(() => {}), 5000);
+        return;
     }
 
     // Set the new language
@@ -57,8 +64,8 @@ module.exports.run = async (message, args) => {
         return message.channel.send(successMsg);
     } catch (err) {
         console.error('Error setting guild language:', err);
-        return message.channel.send(lang.strings.commandError)
-            .then(msg => msg.delete({ timeout: 3000 }));
+        const errorMsg = await message.channel.send(lang.strings.commandError);
+        setTimeout(() => errorMsg.delete().catch(() => {}), 3000);
     }
 };
 

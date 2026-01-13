@@ -1,4 +1,4 @@
-const { MessageEmbed } = require('discord.js');
+const { EmbedBuilder } = require('discord.js');
 const { RssFeed } = require('../util');
 const { New, Guild } = require('../models');
 const { getLanguage, getNewsRssUrl, getNewsTitleKeyword, EMBED_COLORS, DEFAULT_LANG } = require('../config/languages');
@@ -100,12 +100,17 @@ module.exports = {
                     continue;
                 }
 
-                const newsEmbed = new MessageEmbed()
+                // v14: MessageEmbed -> EmbedBuilder
+                // v14: addField() -> addFields([])
+                const newsEmbed = new EmbedBuilder()
                     .setColor(EMBED_COLORS.PRIMARY)
                     .setTitle(newItem.title.replace(titleKeyword, lang.strings.latestNews))
-                    .addField(lang.strings.readHere, `${newItem.link}`);
+                    .addFields([
+                        { name: lang.strings.readHere, value: `${newItem.link}` }
+                    ]);
 
-                await channel.send(newsEmbed);
+                // v14: send(embed) -> send({ embeds: [embed] })
+                await channel.send({ embeds: [newsEmbed] });
             } catch (error) {
                 console.error(`Failed to send news to guild ${server.id}:`, error);
                 Sentry.captureException(error, {

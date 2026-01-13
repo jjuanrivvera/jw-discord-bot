@@ -1,4 +1,4 @@
-const { MessageEmbed } = require('discord.js');
+const { EmbedBuilder } = require('discord.js');
 const { Text, Topic } = require('../models');
 const Sentry = require('../../sentry');
 const { getLanguage, getWolSearchUrl, EMBED_COLORS, DEFAULT_LANG } = require('../config/languages');
@@ -27,7 +27,7 @@ module.exports = {
      * Get daily text embeds for a specific date
      * @param {string} dateString - Date in YYYY-MM-DD format
      * @param {string} langCode - Language code (default: DEFAULT_LANG)
-     * @returns {Array<MessageEmbed>|undefined} Array of embeds or undefined if not found
+     * @returns {Array<EmbedBuilder>|undefined} Array of embeds or undefined if not found
      */
     async getDailyText(dateString, langCode = DEFAULT_LANG) {
         const lang = getLanguage(langCode);
@@ -42,10 +42,14 @@ module.exports = {
         const chunks = chunkString(`${text.explanation}`, 1024);
 
         chunks.forEach(chunk => {
-            const dailyText = new MessageEmbed()
+            // v14: MessageEmbed -> EmbedBuilder
+            // v14: addField() -> addFields([{ name, value }])
+            const dailyText = new EmbedBuilder()
                 .setColor(EMBED_COLORS.PRIMARY)
                 .setTitle(lang.strings.dailyText)
-                .addField(`${text.textContent} ${text.text}`, `${chunk}`);
+                .addFields([
+                    { name: `${text.textContent} ${text.text}`, value: `${chunk}` }
+                ]);
 
             embeds.push(dailyText);
         });
@@ -80,21 +84,17 @@ module.exports = {
                 return;
             }
 
-            const topicEmbed = new MessageEmbed()
+            // v14: MessageEmbed -> EmbedBuilder
+            const topicEmbed = new EmbedBuilder()
                 .setColor(EMBED_COLORS.PRIMARY)
                 .setTitle(topic.name)
-                .addFields(
-                    {
-                        name: lang.strings.consider,
-                        value: topic.discussion
-                    },
-                    {
-                        name: lang.strings.search,
-                        value: getWolSearchUrl(topic.query, langCode)
-                    }
-                );
+                .addFields([
+                    { name: lang.strings.consider, value: topic.discussion },
+                    { name: lang.strings.search, value: getWolSearchUrl(topic.query, langCode) }
+                ]);
 
-            return channel.send(topicEmbed);
+            // v14: send(embed) -> send({ embeds: [embed] })
+            return channel.send({ embeds: [topicEmbed] });
         } catch (err) {
             console.error('Error sending random topic:', err);
             Sentry.captureException(err);

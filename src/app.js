@@ -2,8 +2,29 @@ const fs = require('fs');
 const cron = require('node-cron');
 const moment = require('moment-timezone');
 
-const { Client, Collection } = require('discord.js');
-const discordClient = new Client();
+const {
+    Client,
+    Collection,
+    GatewayIntentBits,
+    Partials,
+    ActivityType
+} = require('discord.js');
+
+const discordClient = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,        // REQUIRED for prefix commands
+        GatewayIntentBits.GuildMessageReactions, // For pagination
+        GatewayIntentBits.DirectMessages         // For DM support (if needed)
+    ],
+    partials: [
+        Partials.Message,
+        Partials.Channel,
+        Partials.Reaction
+    ]
+});
+
 const discordToken = process.env.DISCORD_TOKEN;
 
 /* -------------------------------------------
@@ -100,5 +121,12 @@ module.exports = {
 
     login() {
         discordClient.login(discordToken);
-    }
+    },
+
+    // Export client and ActivityType for external use
+    getClient() {
+        return discordClient;
+    },
+
+    ActivityType
 };

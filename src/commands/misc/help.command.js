@@ -1,4 +1,4 @@
-const { MessageEmbed } = require('discord.js');
+const { EmbedBuilder } = require('discord.js');
 const { Command } = require('../../models');
 const { GuildHelper } = require('../../helpers');
 const { getLanguage, EMBED_COLORS } = require('../../config/languages');
@@ -11,16 +11,25 @@ module.exports.run = async (message, args) => {
     if (!args.length) {
         const commands = await Command.find({});
 
-        const help = new MessageEmbed().setColor(EMBED_COLORS.PRIMARY);
-        help.setTitle(lang.strings.availableCommands || 'Available Command List');
+        // v14: MessageEmbed -> EmbedBuilder
+        const help = new EmbedBuilder()
+            .setColor(EMBED_COLORS.PRIMARY)
+            .setTitle(lang.strings.availableCommands || 'Available Command List');
 
-        commands.forEach(function (command) {
-            if (command.group === 'User') {
-                help.addField(`${command.name}`, `**${lang.strings.description || 'Description'}:** ${command.description}\n**${lang.strings.usage || 'Usage'}:** ${command.usage}`);
-            }
-        });
+        // v14: addField() -> addFields([])
+        const fields = commands
+            .filter(command => command.group === 'User')
+            .map(command => ({
+                name: command.name,
+                value: `**${lang.strings.description || 'Description'}:** ${command.description}\n**${lang.strings.usage || 'Usage'}:** ${command.usage}`
+            }));
 
-        return message.channel.send(help);
+        if (fields.length > 0) {
+            help.addFields(fields);
+        }
+
+        // v14: send(embed) -> send({ embeds: [embed] })
+        return message.channel.send({ embeds: [help] });
     }
 };
 

@@ -10,7 +10,10 @@ module.exports.run = async (message, args) => {
         const user = message.mentions.users.first();
 
         if (!user) {
-            return message.channel.send(lang.strings.mentionValidUser).then(msg => msg.delete({ timeout: 3000 }));
+            // v14: message.delete() no longer accepts options object
+            const errorMsg = await message.channel.send(lang.strings.mentionValidUser);
+            setTimeout(() => errorMsg.delete().catch(() => {}), 3000);
+            return;
         }
 
         return message.channel.send(user.displayAvatarURL());

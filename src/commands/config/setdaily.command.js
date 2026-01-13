@@ -1,4 +1,4 @@
-const { MessageEmbed } = require('discord.js');
+const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const { Schedule } = require('../../models');
 const { GuildHelper } = require('../../helpers');
 const { getLanguage, EMBED_COLORS } = require('../../config/languages');
@@ -8,9 +8,11 @@ module.exports.run = async (message, args) => {
     const langCode = await GuildHelper.getGuildLanguage(message.guild.id);
     const lang = getLanguage(langCode);
 
-    // Check for admin permissions
-    if (!message.member.hasPermission('ADMINISTRATOR')) {
-        return message.channel.send(lang.strings.adminOnly).then(msg => msg.delete({ timeout: 5000 }));
+    // v14: hasPermission() -> permissions.has()
+    if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
+        const errorMsg = await message.channel.send(lang.strings.adminOnly);
+        setTimeout(() => errorMsg.delete().catch(() => {}), 5000);
+        return;
     }
 
     const channel = message.mentions.channels.first();
@@ -32,12 +34,17 @@ module.exports.run = async (message, args) => {
                 : `ID: ${schedule.channelId} (${lang.strings.notConfigured})`;
         }
 
-        const configEmbed = new MessageEmbed()
+        // v14: MessageEmbed -> EmbedBuilder
+        // v14: addField() -> addFields([])
+        const configEmbed = new EmbedBuilder()
             .setColor(EMBED_COLORS.PRIMARY)
             .setTitle(lang.strings.currentConfig)
-            .addField('Daily Text', scheduleDisplay);
+            .addFields([
+                { name: 'Daily Text', value: scheduleDisplay }
+            ]);
 
-        return message.channel.send(configEmbed);
+        // v14: send(embed) -> send({ embeds: [embed] })
+        return message.channel.send({ embeds: [configEmbed] });
     }
 
     // If "off" or "remove" is passed, remove the schedule
@@ -47,23 +54,27 @@ module.exports.run = async (message, args) => {
             action: 'sendDailyText'
         });
 
-        const embed = new MessageEmbed()
+        const embed = new EmbedBuilder()
             .setColor(EMBED_COLORS.SUCCESS)
             .setDescription(lang.strings.dailyScheduleRemoved);
 
-        return message.channel.send(embed);
+        return message.channel.send({ embeds: [embed] });
     }
 
     // Require a channel mention
     if (!channel) {
-        return message.channel.send(lang.strings.specifyChannel).then(msg => msg.delete({ timeout: 5000 }));
+        const errorMsg = await message.channel.send(lang.strings.specifyChannel);
+        setTimeout(() => errorMsg.delete().catch(() => {}), 5000);
+        return;
     }
 
     // Parse and validate hour (default to 7 if not provided)
     const hour = hourArg ? parseInt(hourArg, 10) : 7;
 
     if (hour < 0 || hour > 23) {
-        return message.channel.send(lang.strings.invalidHour).then(msg => msg.delete({ timeout: 5000 }));
+        const errorMsg = await message.channel.send(lang.strings.invalidHour);
+        setTimeout(() => errorMsg.delete().catch(() => {}), 5000);
+        return;
     }
 
     const hourStr = hour.toString().padStart(2, '0');
@@ -84,11 +95,11 @@ module.exports.run = async (message, args) => {
         { upsert: true, new: true }
     );
 
-    const embed = new MessageEmbed()
+    const embed = new EmbedBuilder()
         .setColor(EMBED_COLORS.SUCCESS)
         .setDescription(`${lang.strings.dailyScheduleSet} ${channel} ${lang.strings.atHour} ${hourStr}:00`);
 
-    return message.channel.send(embed);
+    return message.channel.send({ embeds: [embed] });
 };
 
 module.exports.config = {

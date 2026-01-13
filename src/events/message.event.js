@@ -1,9 +1,10 @@
+const { Events } = require('discord.js');
 const discordPrefix = process.env.PREFIX || 'jw!';
 const Sentry = require('../../sentry');
 const { getString } = require('../config/languages');
 
 module.exports = {
-    name: 'message',
+    name: Events.MessageCreate,  // v14: 'message' -> Events.MessageCreate
     async execute(message, client) {
         if (!message.content.startsWith(discordPrefix) || message.author.bot || !message.guild) {
             return;
@@ -19,7 +20,9 @@ module.exports = {
             } catch (err) {
                 console.error('Command execution error:', err);
                 Sentry.captureException(err);
-                await message.channel.send(getString('commandError')).then(msg => msg.delete({ timeout: 3000 }));
+                // v14: message.delete() no longer accepts options object
+                const errorMsg = await message.channel.send(getString('commandError'));
+                setTimeout(() => errorMsg.delete().catch(() => {}), 3000);
             }
         }
     }

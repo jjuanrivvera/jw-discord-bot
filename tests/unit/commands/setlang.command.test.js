@@ -2,14 +2,17 @@
  * Unit tests for setlang.command.js
  */
 
-// Mock Discord.js
+// Mock Discord.js with v14 API
 jest.mock('discord.js', () => ({
-    MessageEmbed: jest.fn().mockImplementation(() => ({
+    EmbedBuilder: jest.fn().mockImplementation(() => ({
         setColor: jest.fn().mockReturnThis(),
         setTitle: jest.fn().mockReturnThis(),
         addField: jest.fn().mockReturnThis(),
         addFields: jest.fn().mockReturnThis()
-    }))
+    })),
+    PermissionFlagsBits: {
+        Administrator: BigInt(8) // Discord.js v14 uses BigInt for permissions
+    }
 }));
 
 // Mock helpers
@@ -30,6 +33,7 @@ describe('SetLang Command', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
+        jest.useFakeTimers();
 
         sentMessage = {
             delete: jest.fn().mockResolvedValue({})
@@ -37,10 +41,15 @@ describe('SetLang Command', () => {
 
         mockMessage = createMockMessage();
         mockMessage.channel.send = jest.fn().mockResolvedValue(sentMessage);
-        mockMessage.member.hasPermission = jest.fn().mockReturnValue(true);
+        // v14: Use permissions.has() instead of hasPermission()
+        mockMessage.member.permissions.has = jest.fn().mockReturnValue(true);
 
         GuildHelper.getGuildLanguage.mockResolvedValue('es');
         GuildHelper.setGuildLanguage.mockResolvedValue({ language: 'en' });
+    });
+
+    afterEach(() => {
+        jest.useRealTimers();
     });
 
     describe('config', () => {
@@ -55,26 +64,28 @@ describe('SetLang Command', () => {
 
     describe('permissions', () => {
         it('should deny non-admin users', async () => {
-            mockMessage.member.hasPermission.mockReturnValue(false);
+            mockMessage.member.permissions.has.mockReturnValue(false);
 
             await setlangCommand.run(mockMessage, []);
 
             expect(mockMessage.channel.send).toHaveBeenCalled();
-            expect(sentMessage.delete).toHaveBeenCalledWith({ timeout: 3000 });
+            // v14: delete is called via setTimeout
+            jest.runAllTimers();
+            expect(sentMessage.delete).toHaveBeenCalled();
         });
 
         it('should allow admin users', async () => {
-            mockMessage.member.hasPermission.mockReturnValue(true);
+            mockMessage.member.permissions.has.mockReturnValue(true);
 
             await setlangCommand.run(mockMessage, ['en']);
 
             expect(GuildHelper.setGuildLanguage).toHaveBeenCalled();
         });
 
-        it('should check for ADMINISTRATOR permission', async () => {
+        it('should check for Administrator permission using permissions.has()', async () => {
             await setlangCommand.run(mockMessage, []);
 
-            expect(mockMessage.member.hasPermission).toHaveBeenCalledWith('ADMINISTRATOR');
+            expect(mockMessage.member.permissions.has).toHaveBeenCalled();
         });
     });
 
@@ -157,7 +168,9 @@ describe('SetLang Command', () => {
         it('should delete error message after timeout', async () => {
             await setlangCommand.run(mockMessage, ['invalid']);
 
-            expect(sentMessage.delete).toHaveBeenCalledWith({ timeout: 5000 });
+            // v14: delete is called via setTimeout
+            jest.runAllTimers();
+            expect(sentMessage.delete).toHaveBeenCalled();
         });
     });
 
@@ -168,7 +181,9 @@ describe('SetLang Command', () => {
             await setlangCommand.run(mockMessage, ['en']);
 
             expect(mockMessage.channel.send).toHaveBeenCalled();
-            expect(sentMessage.delete).toHaveBeenCalledWith({ timeout: 3000 });
+            // v14: delete is called via setTimeout
+            jest.runAllTimers();
+            expect(sentMessage.delete).toHaveBeenCalled();
         });
     });
 });

@@ -2,9 +2,9 @@
  * Unit tests for date.command.js
  */
 
-// Mock Discord.js
+// Mock Discord.js with v14 API
 jest.mock('discord.js', () => ({
-    MessageEmbed: jest.fn().mockImplementation(() => ({
+    EmbedBuilder: jest.fn().mockImplementation(() => ({
         setColor: jest.fn().mockReturnThis(),
         setTitle: jest.fn().mockReturnThis(),
         addFields: jest.fn().mockReturnThis()
@@ -21,7 +21,7 @@ jest.mock('../../../src/helpers', () => ({
 const dateCommand = require('../../../src/commands/misc/date.command');
 const { GuildHelper } = require('../../../src/helpers');
 const { createMockMessage } = require('../../mocks/discord.mock');
-const { MessageEmbed } = require('discord.js');
+const { EmbedBuilder } = require('discord.js');
 
 describe('Date Command', () => {
     let mockMessage;
@@ -29,6 +29,7 @@ describe('Date Command', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
+        jest.useFakeTimers();
 
         sentMessage = {
             delete: jest.fn().mockResolvedValue({})
@@ -38,6 +39,10 @@ describe('Date Command', () => {
         mockMessage.channel.send = jest.fn().mockResolvedValue(sentMessage);
 
         GuildHelper.getGuildLanguage.mockResolvedValue('es');
+    });
+
+    afterEach(() => {
+        jest.useRealTimers();
     });
 
     describe('config', () => {
@@ -55,7 +60,7 @@ describe('Date Command', () => {
             await dateCommand.run(mockMessage, []);
 
             expect(mockMessage.channel.send).toHaveBeenCalled();
-            expect(MessageEmbed).toHaveBeenCalled();
+            expect(EmbedBuilder).toHaveBeenCalled();
         });
 
         it('should send date embed to channel', async () => {
@@ -63,6 +68,7 @@ describe('Date Command', () => {
 
             const call = mockMessage.channel.send.mock.calls[0][0];
             expect(call).toBeDefined();
+            expect(call).toHaveProperty('embeds');
         });
 
         it('should get guild language for translations', async () => {
@@ -77,7 +83,6 @@ describe('Date Command', () => {
             await dateCommand.run(mockMessage, ['America/New_York']);
 
             expect(mockMessage.channel.send).toHaveBeenCalled();
-            // Should not have called delete (which happens on error)
         });
 
         it('should accept valid timezone Europe/London', async () => {
@@ -104,12 +109,15 @@ describe('Date Command', () => {
             await dateCommand.run(mockMessage, ['Invalid/Timezone']);
 
             expect(mockMessage.channel.send).toHaveBeenCalled();
-            expect(sentMessage.delete).toHaveBeenCalledWith({ timeout: 3000 });
+            // v14: delete is called via setTimeout, not with options
+            jest.runAllTimers();
+            expect(sentMessage.delete).toHaveBeenCalled();
         });
 
         it('should reject nonsense timezone', async () => {
             await dateCommand.run(mockMessage, ['notavalidtimezone']);
 
+            jest.runAllTimers();
             expect(sentMessage.delete).toHaveBeenCalled();
         });
     });
@@ -120,7 +128,7 @@ describe('Date Command', () => {
 
             await dateCommand.run(mockMessage, []);
 
-            expect(MessageEmbed).toHaveBeenCalled();
+            expect(EmbedBuilder).toHaveBeenCalled();
         });
 
         it('should use English strings when guild language is en', async () => {
@@ -128,7 +136,7 @@ describe('Date Command', () => {
 
             await dateCommand.run(mockMessage, []);
 
-            expect(MessageEmbed).toHaveBeenCalled();
+            expect(EmbedBuilder).toHaveBeenCalled();
         });
 
         it('should use Portuguese strings when guild language is pt', async () => {
@@ -136,7 +144,7 @@ describe('Date Command', () => {
 
             await dateCommand.run(mockMessage, []);
 
-            expect(MessageEmbed).toHaveBeenCalled();
+            expect(EmbedBuilder).toHaveBeenCalled();
         });
     });
 
@@ -144,7 +152,7 @@ describe('Date Command', () => {
         it('should create embed with correct methods', async () => {
             await dateCommand.run(mockMessage, []);
 
-            const embedInstance = MessageEmbed.mock.results[0].value;
+            const embedInstance = EmbedBuilder.mock.results[0].value;
             expect(embedInstance.setColor).toHaveBeenCalled();
             expect(embedInstance.setTitle).toHaveBeenCalled();
             expect(embedInstance.addFields).toHaveBeenCalled();
@@ -153,9 +161,9 @@ describe('Date Command', () => {
         it('should add fields for day, month, year, time, and timezone', async () => {
             await dateCommand.run(mockMessage, ['UTC']);
 
-            const embedInstance = MessageEmbed.mock.results[0].value;
+            const embedInstance = EmbedBuilder.mock.results[0].value;
 
-            // addFields is called with spread arguments, so we check the number of calls
+            // addFields is called with an array of field objects
             expect(embedInstance.addFields).toHaveBeenCalled();
 
             // Check that addFields received objects with name/value
