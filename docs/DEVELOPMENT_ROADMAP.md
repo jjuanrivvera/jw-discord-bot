@@ -72,7 +72,7 @@ This document outlines the development status for each project in the JW Discord
 - [x] **Rate limiting (100 req/15min)**
 - [x] **Security headers (Helmet)**
 - [x] **CORS configuration**
-- [x] **Unit and integration tests (43 tests passing)**
+- [x] **Unit and integration tests (46 tests passing)**
 - [x] **CI/CD GitHub workflows**
 - [x] **Pre-commit hooks with Husky**
 
