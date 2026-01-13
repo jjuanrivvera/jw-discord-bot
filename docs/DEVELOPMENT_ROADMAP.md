@@ -9,10 +9,10 @@ This document outlines the development status for each project in the JW Discord
 | Project | Current State | Status |
 |---------|---------------|--------|
 | jw-discord-bot | 100% complete | Feature complete, 173 tests passing |
-| jw-discord-api | 100% complete | Feature complete, 43 tests passing |
+| jw-discord-api | 100% complete | Feature complete, 46 tests passing |
 | jw-discord-frontend | 100% complete | Feature complete, 45 tests passing |
 
-**Total Tests:** 261 passing across all projects
+**Total Tests:** 264 passing across all projects
 
 ---
 
@@ -132,7 +132,7 @@ GET /api/v1/health             # Health check
 - **Framework:** Express.js
 - **DI Container:** Awilix
 - **Database:** MongoDB with Mongoose
-- **Testing:** Jest + Supertest (43 tests)
+- **Testing:** Jest + Supertest (46 tests)
 
 ---
 
@@ -235,9 +235,9 @@ utils/
 | Project | Test Count | Coverage | Status |
 |---------|------------|----------|--------|
 | Bot | 173 | 98% | Passing |
-| API | 43 | 75% | Passing |
+| API | 46 | 65% | Passing |
 | Frontend | 45 | - | Passing |
-| **Total** | **261** | - | **All Passing** |
+| **Total** | **264** | - | **All Passing** |
 
 ---
 
