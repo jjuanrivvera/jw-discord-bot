@@ -1,3 +1,6 @@
 node_modules
 .env
 texts.*
+coverage/
+output.json
+.claude/
