@@ -72,6 +72,6 @@ module.exports.run = async (message, args) => {
 };
 
 module.exports.config = {
-    name: "Set News Channel",
-    command: "setnews"
+    name: 'Set News Channel',
+    command: 'setnews'
 };

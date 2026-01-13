@@ -1,8 +1,8 @@
-const fs = require("fs");
-const cron = require("node-cron");
-const moment = require("moment-timezone");
+const fs = require('fs');
+const cron = require('node-cron');
+const moment = require('moment-timezone');
 
-const { Client, Collection } = require("discord.js");
+const { Client, Collection } = require('discord.js');
 const discordClient = new Client();
 const discordToken = process.env.DISCORD_TOKEN;
 
@@ -11,7 +11,7 @@ const discordToken = process.env.DISCORD_TOKEN;
  --------------------------------------------- */
 const newsCronPeriodicity = process.env.NEWS_CRON || '* */6 * * *';
 const schedulerTimezone = process.env.SCHEDULER_TIMEZONE || 'America/Bogota';
-const { Schedule, Guild } = require("./models");
+const { Schedule, Guild } = require('./models');
 const { ScheduleHelper, NewsHelper } = require('./helpers');
 const { DEFAULT_LANG } = require('./config/languages');
 
@@ -52,10 +52,10 @@ module.exports = {
         });
 
         // Scheduled actions (daily text, random topics, etc.)
-        cron.schedule("* * * * *", async function () {
+        cron.schedule('* * * * *', async function () {
             // Get date and hour using configurable timezone
-            const date = moment().tz(schedulerTimezone).format("YYYY-MM-DD");
-            const hours = moment().tz(schedulerTimezone).format("HH");
+            const date = moment().tz(schedulerTimezone).format('YYYY-MM-DD');
+            const hours = moment().tz(schedulerTimezone).format('HH');
 
             try {
                 const schedules = await Schedule.find();
@@ -101,4 +101,4 @@ module.exports = {
     login() {
         discordClient.login(discordToken);
     }
-}
+};

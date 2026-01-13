@@ -11,20 +11,20 @@ module.exports.run = async (message, args) => {
     if (!args.length) {
         const commands = await Command.find({});
 
-        let help = new MessageEmbed().setColor(EMBED_COLORS.PRIMARY);
-        help.setTitle(lang.strings.availableCommands || "Available Command List");
+        const help = new MessageEmbed().setColor(EMBED_COLORS.PRIMARY);
+        help.setTitle(lang.strings.availableCommands || 'Available Command List');
 
-        commands.forEach(function(command) {
-            if (command.group === "User") {
+        commands.forEach(function (command) {
+            if (command.group === 'User') {
                 help.addField(`${command.name}`, `**${lang.strings.description || 'Description'}:** ${command.description}\n**${lang.strings.usage || 'Usage'}:** ${command.usage}`);
             }
         });
 
         return message.channel.send(help);
     }
-}
+};
 
 module.exports.config = {
-    name: "Help",
-    command: "help"
-}
+    name: 'Help',
+    command: 'help'
+};

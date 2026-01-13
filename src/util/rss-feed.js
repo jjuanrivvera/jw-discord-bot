@@ -18,7 +18,7 @@ class RssFeed {
 
     getItemsSortedByDate() {
         return this.items.sort(((a, b) => {
-            return new Date(b.isoDate) - new Date(a.isoDate)
+            return new Date(b.isoDate) - new Date(a.isoDate);
         }));
     }
 }

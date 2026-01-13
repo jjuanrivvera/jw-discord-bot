@@ -1,7 +1,6 @@
 const { MessageEmbed } = require('discord.js');
 const { RssFeed } = require('../util');
 const { New, Guild } = require('../models');
-const { GuildHelper } = require('./');
 const { getLanguage, getNewsRssUrl, getNewsTitleKeyword, EMBED_COLORS, DEFAULT_LANG } = require('../config/languages');
 const Sentry = require('../../sentry');
 

@@ -92,6 +92,6 @@ module.exports.run = async (message, args) => {
 };
 
 module.exports.config = {
-    name: "Set Daily Text",
-    command: "setdaily"
+    name: 'Set Daily Text',
+    command: 'setdaily'
 };

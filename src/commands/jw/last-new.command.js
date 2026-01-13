@@ -21,9 +21,9 @@ module.exports.run = async (message) => {
         .setDescription(lastNew.link);
 
     message.channel.send(newEmbed);
-}
+};
 
 module.exports.config = {
-    name: "Last New",
-    command: "last-new"
-}
+    name: 'Last New',
+    command: 'last-new'
+};

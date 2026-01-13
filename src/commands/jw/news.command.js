@@ -28,9 +28,9 @@ module.exports.run = async (message) => {
     });
 
     return message.channel.send(newsEmbed);
-}
+};
 
 module.exports.config = {
-    name: "News",
-    command: "news"
-}
+    name: 'News',
+    command: 'news'
+};

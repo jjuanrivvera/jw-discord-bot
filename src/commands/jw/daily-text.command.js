@@ -18,9 +18,9 @@ module.exports.run = async (message, args) => {
     }
 
     PaginationEmbed(message.channel, dailyTextEmbeds, ['⏪', '⏩'], 28800000);
-}
+};
 
 module.exports.config = {
-    name: "Daily Text",
-    command: "daily-text"
-}
+    name: 'Daily Text',
+    command: 'daily-text'
+};

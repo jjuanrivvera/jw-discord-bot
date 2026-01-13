@@ -19,9 +19,9 @@ module.exports.run = async (message, args) => {
     return message.channel.send(message.author.displayAvatarURL({
         size: 1024
     }));
-}
+};
 
 module.exports.config = {
-    name: "Avatar",
-    command: "avatar"
-}
+    name: 'Avatar',
+    command: 'avatar'
+};

@@ -8,26 +8,26 @@ module.exports.run = async (message, args) => {
     const lang = getLanguage(langCode);
 
     // Discord message embed
-    let topicEmbed = new MessageEmbed().setColor(EMBED_COLORS.PRIMARY);
+    const topicEmbed = new MessageEmbed().setColor(EMBED_COLORS.PRIMARY);
 
     if (!args.length) {
         message.channel.send(lang.strings.specifyTopic).then(msg => msg.delete({ timeout: 3000 }));
         return;
     }
 
-    if (args[0] == "random") {
+    if (args[0] === 'random') {
         return JwHelper.sendRandomTopic(message.channel, langCode);
     }
 
-    let topic = args.join('+');
+    const topic = args.join('+');
 
     topicEmbed.setTitle(lang.strings.jwOnlineLibrary);
     topicEmbed.addField(`${lang.strings.moreInfoAbout} "${topic}"`, getWolSearchUrl(topic, langCode));
 
     message.channel.send(topicEmbed);
-}
+};
 
 module.exports.config = {
-    name: "Topic",
-    command: "topic"
-}
+    name: 'Topic',
+    command: 'topic'
+};

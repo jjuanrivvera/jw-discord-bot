@@ -1,6 +1,6 @@
 const { MessageEmbed } = require('discord.js');
 const { GuildHelper } = require('../../helpers');
-const { EMBED_COLORS, getLanguage, getAvailableLanguages, DEFAULT_LANG } = require('../../config/languages');
+const { EMBED_COLORS, getLanguage, getAvailableLanguages } = require('../../config/languages');
 
 module.exports.run = async (message, args) => {
     // Get current guild language for responses
@@ -63,6 +63,6 @@ module.exports.run = async (message, args) => {
 };
 
 module.exports.config = {
-    name: "Set Language",
-    command: "setlang"
+    name: 'Set Language',
+    command: 'setlang'
 };
